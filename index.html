@@ -68,6 +68,25 @@
   <p>&copy; 2024 Jimmy Han. Built with passion and curiosity.</p>
 </footer>
 
+<!-- Chat widget -->
+<div id="chat-widget" aria-live="polite">
+  <button id="chatToggle" class="chat-toggle" aria-label="Open chat" aria-expanded="false">
+    <span class="chat-icon">💬</span>
+    <span id="chatStatus" class="chat-status offline" aria-hidden="true"></span>
+  </button>
+  <div id="chatWindow" class="chat-window">
+    <div class="chat-header">
+      <strong>Chat with Jimmy</strong>
+      <button id="chatClose" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div>
+    <form id="chatForm" class="chat-form">
+      <input type="text" id="chatInput" placeholder="Write a message..." required autocomplete="off">
+      <button type="submit" id="chatSend">Send</button>
+    </form>
+  </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>

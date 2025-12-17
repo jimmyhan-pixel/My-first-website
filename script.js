@@ -95,3 +95,97 @@ document.querySelectorAll("section").forEach(section => {
   section.style.transition = "opacity 0.6s ease, transform 0.6s ease";
   observer.observe(section);
 });
+
+// Chat widget logic (WebSocket if available, otherwise offline auto-reply)
+(function(){
+  const chatToggle = document.getElementById('chatToggle');
+  const chatWindow = document.getElementById('chatWindow');
+  const chatClose = document.getElementById('chatClose');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatStatus = document.getElementById('chatStatus');
+
+  let ws;
+  let connected = false;
+  const WS_URL = 'wss://example.com/chat'; // replace with your WebSocket server URL
+
+  function addMessage(text, from='user') {
+    if (!chatMessages) return;
+    const el = document.createElement('div');
+    el.className = 'msg ' + (from === 'owner' ? 'owner' : 'user');
+    el.textContent = text;
+    chatMessages.appendChild(el);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function setStatus(isOnline) {
+    connected = isOnline;
+    if (!chatStatus) return;
+    chatStatus.className = 'chat-status ' + (isOnline ? 'online' : 'offline');
+    chatStatus.title = isOnline ? 'Owner is online' : 'Owner is offline';
+  }
+
+  function connect() {
+    try {
+      ws = new WebSocket(WS_URL);
+      ws.addEventListener('open', () => setStatus(true));
+      ws.addEventListener('close', () => setStatus(false));
+      ws.addEventListener('error', () => setStatus(false));
+      ws.addEventListener('message', (ev) => {
+        let data = ev.data;
+        addMessage(data, 'owner');
+      });
+    } catch (e) {
+      setStatus(false);
+    }
+  }
+
+  // Try to connect (harmless if no server exists yet)
+  connect();
+
+  if (chatToggle) {
+    chatToggle.addEventListener('click', () => {
+      const widget = document.getElementById('chat-widget');
+      const opening = !widget.classList.contains('open');
+      if (opening) {
+        widget.classList.add('open');
+        chatToggle.setAttribute('aria-expanded', 'true');
+        setTimeout(() => { if (chatInput) chatInput.focus(); }, 320);
+      } else {
+        widget.classList.remove('open');
+        chatToggle.setAttribute('aria-expanded', 'false');
+        chatToggle.focus();
+      }
+    });
+  }
+  if (chatClose) chatClose.addEventListener('click', () => {
+    const widget = document.getElementById('chat-widget');
+    widget.classList.remove('open');
+    if (chatToggle) chatToggle.setAttribute('aria-expanded', 'false');
+    if (chatToggle) chatToggle.focus();
+  });
+
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+      addMessage(text, 'user');
+      chatInput.value = '';
+      if (connected && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(text);
+      } else {
+        // Immediate auto-reply when owner is offline
+        setTimeout(() => {
+          addMessage("When I am available, I will get back to you as soon as possible.", 'owner');
+        }, 400);
+      }
+    });
+  }
+
+  // Periodically attempt to reconnect while page is open
+  setInterval(() => {
+    if (!connected) connect();
+  }, 5000);
+})();
