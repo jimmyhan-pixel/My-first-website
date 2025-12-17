@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jimmy Han - Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-content">
+    <h1>--</h1>
+    <p class="subtitle">Aspiring AI Professional</p>
+    <p class="greeting" id="greeting"></p>
+  </div>
+</header>
+
+<main>
+  <section id="about">
+    <h2>About Me</h2>
+    <div class="content-wrapper">
+      <p>
+        Hi! I'm Jimmy, based in Brooklyn. I'm transitioning from customer service
+        into AI-related fields and enjoy learning by building small projects like this one.
+      </p>
+      <div class="skills">
+        <span class="skill-tag">AI/ML</span>
+        <span class="skill-tag">Web Development</span>
+        <span class="skill-tag">Problem Solving</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="connect">
+    <h2>Get My Resume</h2>
+    <div class="content-wrapper">
+      <p>To download my resume, please answer this question:</p>
+      <p><strong>What is your organization and your title? (e.g., Acme Corp — Senior Engineer)</strong></p>
+
+      <div class="download-box">
+        <form id="downloadForm">
+          <input type="text" id="orgInput" placeholder="Organization (e.g., Acme Corp)" required>
+          <input type="text" id="titleInput" placeholder="Title (e.g., Senior Engineer)" required>
+          <button type="submit" id="downloadBtn">Submit & Download</button>
+        </form>
+        <p id="downloadMessage" class="muted"></p>
+        <a id="resumeLink" href="resume.pdf" download style="display:none">Download</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2>Contact</h2>
+    <div class="content-wrapper">
+      <div class="contact-item">
+        <span class="contact-icon">✉️</span>
+        <a href="mailto:Jimmy.han@pursuit.org" class="contact-link">--@pursuit.org</a>
+      </div>
+      <div class="contact-item">
+        <span class="contact-icon">🕐</span>
+        <span id="clock" class="clock-text"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>&copy; 2024 Jimmy Han. Built with passion and curiosity.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

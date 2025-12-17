@@ -1,0 +1,125 @@
+/* Global reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+
+  /* Office desk background image */
+  background-image: url("office-desk.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Overlay for readability */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.75);
+  z-index: -1;
+}
+
+header {
+  background-color: rgba(44, 62, 80, 0.95);
+  color: white;
+  text-align: center;
+  padding: 40px 20px;
+  margin-bottom: 30px;
+  border-radius: 8px;
+}
+
+header h1 {
+  font-size: 2.5em;
+}
+
+section {
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 30px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+h2 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+p {
+  margin-bottom: 10px;
+}
+
+.upload-box {
+  border: 2px dashed #3498db;
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.download-box {
+  border: 2px dashed #3498db;
+  padding: 18px;
+  text-align: center;
+  border-radius: 8px;
+  margin-top: 15px;
+  background-color: #fbfdff;
+}
+
+#downloadForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  margin: 10px auto 0;
+}
+
+#downloadForm input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+#downloadBtn {
+  padding: 10px 14px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#downloadBtn:hover { background: #2b85c6; }
+
+#downloadMessage { margin-top: 10px; color: #666; text-align: center; }
+
+.preview {
+  margin-top: 15px;
+}
+
+.preview img {
+  max-width: 150px;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+#clock {
+  margin-top: 10px;
+}
