@@ -3,13 +3,14 @@
 // =============================
 const $ = (id) => document.getElementById(id);
 
-// EmailJS configuration — fill these with your real IDs to enable email delivery.
-// Leave empty to disable EmailJS and avoid runtime errors.
-const EMAILJS_SERVICE_ID = "service_cy9g64j"; // e.g. 'service_xxx'
-const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
+// =============================
+// EmailJS CONFIG (✅ UPDATED)
+// =============================
+const EMAILJS_SERVICE_ID = "service_cy9g64j";
+const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 
 // =============================
-// TIME-BASED GREETING (DOM-safe)
+// TIME-BASED GREETING
 // =============================
 (function initGreeting() {
   const el = $("greeting");
@@ -23,7 +24,7 @@ const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
 })();
 
 // =============================
-// LIVE CLOCK (DOM-safe)
+// LIVE CLOCK
 // =============================
 (function initClock() {
   const clock = $("clock");
@@ -42,7 +43,7 @@ const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
 })();
 
 // =============================
-// CHAT WIDGET (FIXED & STABLE)
+// CHAT WIDGET + EMAILJS (✅ FIXED)
 // =============================
 (function initChatWidget() {
   const widget = $("chat-widget");
@@ -52,18 +53,16 @@ const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
   const input = $("chatInput");
   const messages = $("chatMessages");
   const status = $("chatStatus");
-  const userNameEl = $("Jimmy");
-  const userEmailEl = $("y1722202@gmail.com");
 
-  if (!widget || !toggle) return; // prevents silent JS crashes
+  // ✅ FIX: correct input IDs
+  const userNameEl = $("userName");
+  const userEmailEl = $("userEmail");
+
+  if (!widget || !toggle || !form) return;
 
   let ws = null;
   let connected = false;
-  const WS_URL = "wss://example.com/chat"; // replace later
 
-  // -----------------------------
-  // STATE HELPERS
-  // -----------------------------
   function setStatus(isOnline) {
     connected = isOnline;
     if (!status) return;
@@ -79,9 +78,6 @@ const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
     messages.scrollTop = messages.scrollHeight;
   }
 
-  // -----------------------------
-  // OPEN / CLOSE (ROBUST)
-  // -----------------------------
   function openChat() {
     widget.classList.add("open");
     toggle.setAttribute("aria-expanded", "true");
@@ -96,87 +92,42 @@ const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
 
   toggle.addEventListener("click", (e) => {
     e.preventDefault();
-    e.stopPropagation();
     widget.classList.contains("open") ? closeChat() : openChat();
   });
 
   closeBtn?.addEventListener("click", (e) => {
     e.preventDefault();
-    e.stopPropagation();
     closeChat();
   });
 
-  // Click outside → close
-  document.addEventListener("pointerdown", (e) => {
-    if (!widget.classList.contains("open")) return;
-    if (!widget.contains(e.target) && e.target !== toggle) {
-      closeChat();
-    }
-  });
-
-  // -----------------------------
-  // FORM SUBMIT
-  // -----------------------------
-  form?.addEventListener("submit", (e) => {
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
+
     const text = input.value.trim();
     if (!text) return;
 
     addMessage(text, "user");
     input.value = "";
 
-    // Attempt to send via WebSocket when available
-    if (connected && ws?.readyState === WebSocket.OPEN) {
-      ws.send(text);
-    } else {
-      setTimeout(() => {
-        addMessage("I’m currently offline, but I’ll reply as soon as I’m available.", "owner");
-      }, 400);
-    }
+    // =============================
+    // EMAILJS SEND (核心修复点)
+    // =============================
+    if (typeof emailjs !== "undefined") {
+      const params = {
+        name: userNameEl?.value || "Anonymous",
+        email: userEmailEl?.value || "",
+        message: text,
+      };
 
-    // If EmailJS is configured and available, send an email copy of the chat message.
-    try {
-      if (typeof emailjs !== "undefined" && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
-        const params = {
-          from_name: (userNameEl && userNameEl.value) || "Anonymous",
-          from_email: (userEmailEl && userEmailEl.value) || "",
-          message: text,
-        };
-        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
-          .then(() => {
-            // optional: confirm by appending a small notice in chat
-            addMessage("(Your message was submitted via email.)", "owner");
-          })
-          .catch((err) => {
-            console.error("EmailJS send error:", err);
-            addMessage("(Failed to send email copy.)", "owner");
-          });
-      }
-    } catch (err) {
-      console.error("EmailJS integration error:", err);
+      emailjs
+        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+        .then(() => {
+          addMessage("✅ Message sent. I’ll get back to you soon!", "owner");
+        })
+        .catch((err) => {
+          console.error("EmailJS error:", err);
+          addMessage("❌ Failed to send message. Please try again later.", "owner");
+        });
     }
   });
-
-  // -----------------------------
-  // WEBSOCKET (SAFE)
-  // -----------------------------
-  function connectWS() {
-    if (connected) return;
-    try {
-      ws = new WebSocket(WS_URL);
-      ws.onopen = () => setStatus(true);
-      ws.onclose = () => setStatus(false);
-      ws.onerror = () => setStatus(false);
-      ws.onmessage = (e) => addMessage(e.data, "owner");
-    } catch {
-      setStatus(false);
-    }
-  }
-
-  connectWS();
-  setInterval(connectWS, 5000);
 })();
-
-
-
-// Remove standalone sendBtn handler; EmailJS usage is handled from the chat submit handler above
