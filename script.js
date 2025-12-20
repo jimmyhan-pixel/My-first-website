@@ -3,6 +3,15 @@
 // =============================
 const $ = (id) => document.getElementById(id);
 
+// ✅ ADD THIS HERE (ONCE)
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 // =============================
 // EmailJS CONFIG ✅ 必须完整
 // =============================
@@ -112,7 +121,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   // FORM SUBMIT → EMAILJS
   // =============================
   let ownerName = "Jimmy";
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
 
@@ -129,10 +138,20 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       return;
     }
 
+    const fileInput = document.getElementById("chatFile");
+    const file = fileInput?.files?.[0];
+
+    let attachment = null;
+
+    if (file) {
+      attachment = await fileToBase64(file);
+    }
+
     const params = {
       name: userNameEl?.value?.trim() || "Anonymous",
       email: userEmailEl?.value?.trim() || "Not provided",
       message: text,
+      attachment: attachment, // 👈 important
     };
 
     emailjs
