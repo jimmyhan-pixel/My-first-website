@@ -4,10 +4,20 @@
 const $ = (id) => document.getElementById(id);
 
 // =============================
-// EmailJS CONFIG (✅ UPDATED)
+// EmailJS CONFIG ✅ 必须完整
 // =============================
+const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY_HERE"; // ← 必填
 const EMAILJS_SERVICE_ID = "service_cy9g64j";
 const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
+
+// 初始化 EmailJS（✅ 核心修复）
+(function initEmailJS() {
+  if (typeof emailjs === "undefined") {
+    console.warn("EmailJS not loaded");
+    return;
+  }
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+})();
 
 // =============================
 // TIME-BASED GREETING
@@ -43,7 +53,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 })();
 
 // =============================
-// CHAT WIDGET + EMAILJS (✅ FIXED)
+// CHAT WIDGET + EMAILJS (✅ 稳定版)
 // =============================
 (function initChatWidget() {
   const widget = $("chat-widget");
@@ -54,23 +64,21 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   const messages = $("chatMessages");
   const status = $("chatStatus");
 
-  // ✅ FIX: correct input IDs
   const userNameEl = $("userName");
   const userEmailEl = $("userEmail");
 
-  if (!widget || !toggle || !form) return;
+  if (!widget || !toggle || !form || !input || !messages) return;
 
-  let ws = null;
-  let connected = false;
+  let sending = false;
 
   function setStatus(isOnline) {
-    connected = isOnline;
     if (!status) return;
     status.className = "chat-status " + (isOnline ? "online" : "offline");
   }
 
+  setStatus(true); // 当前为 Email 模式，默认 online
+
   function addMessage(text, from = "user") {
-    if (!messages) return;
     const msg = document.createElement("div");
     msg.className = `msg ${from}`;
     msg.textContent = text;
@@ -81,7 +89,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   function openChat() {
     widget.classList.add("open");
     toggle.setAttribute("aria-expanded", "true");
-    setTimeout(() => input && input.focus(), 200);
+    setTimeout(() => input.focus(), 150);
   }
 
   function closeChat() {
@@ -100,34 +108,43 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     closeChat();
   });
 
+  // =============================
+  // FORM SUBMIT → EMAILJS
+  // =============================
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    if (sending) return;
 
     const text = input.value.trim();
     if (!text) return;
 
     addMessage(text, "user");
     input.value = "";
+    sending = true;
 
-    // =============================
-    // EMAILJS SEND (核心修复点)
-    // =============================
-    if (typeof emailjs !== "undefined") {
-      const params = {
-        name: userNameEl?.value || "Anonymous",
-        email: userEmailEl?.value || "",
-        message: text,
-      };
-
-      emailjs
-        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
-        .then(() => {
-          addMessage("✅ Message sent. I’ll get back to you soon!", "owner");
-        })
-        .catch((err) => {
-          console.error("EmailJS error:", err);
-          addMessage("❌ Failed to send message. Please try again later.", "owner");
-        });
+    if (typeof emailjs === "undefined") {
+      addMessage("❌ Email service not available.", "owner");
+      sending = false;
+      return;
     }
+
+    const params = {
+      name: userNameEl?.value?.trim() || "Anonymous",
+      email: userEmailEl?.value?.trim() || "Not provided",
+      message: text,
+    };
+
+    emailjs
+      .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+      .then(() => {
+        addMessage("✅ Message sent. I’ll get back to you soon!", "owner");
+      })
+      .catch((err) => {
+        console.error("EmailJS error:", err);
+        addMessage("❌ Failed to send message. Please try again later.", "owner");
+      })
+      .finally(() => {
+        sending = false;
+      });
   });
 })();
