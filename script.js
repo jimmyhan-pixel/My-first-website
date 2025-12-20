@@ -141,17 +141,17 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     const fileInput = document.getElementById("chatFile");
     const file = fileInput?.files?.[0];
 
-    let attachment = null;
-
     if (file) {
-      attachment = await fileToBase64(file);
+      addMessage("❌ File uploads are not supported yet. Please email your file directly to me.", "owner");
+      fileInput.value = "";
+      sending = false;
+      return;
     }
 
     const params = {
       name: userNameEl?.value?.trim() || "Anonymous",
       email: userEmailEl?.value?.trim() || "Not provided",
       message: text,
-      attachment: attachment, // 👈 important
     };
 
     emailjs
