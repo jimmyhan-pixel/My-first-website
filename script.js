@@ -124,7 +124,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     sending = true;
 
     if (typeof emailjs === "undefined") {
-      addMessage("❌ Email service not available."+ ownerName, "owner");
+      addMessage("❌ Email service not available. "+ ownerName, "owner");
       sending = false;
       return;
     }
@@ -138,11 +138,11 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     emailjs
       .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
       .then(() => {
-        addMessage("✅ Message sent. I’ll send email to you soon!"+ ownerName, "owner");
+        addMessage("✅ Message sent. I’ll send email to you soon! "+ ownerName, "owner");
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
-        addMessage("❌ Failed to send message. Please try again later."+ ownerName, "owner");
+        addMessage("❌ Failed to send message. Please try again later. "+ ownerName, "owner");
       })
       .finally(() => {
         sending = false;
