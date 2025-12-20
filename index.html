@@ -22,6 +22,9 @@
 <header>
   <div class="header-content">
     <h1>--</h1>
+    <div class="preview">
+      <img id="profilePic" src="profile.jpg" alt="Jimmy Han">
+    </div>
     <p class="subtitle">Aspiring AI Professional</p>
     <p class="greeting" id="greeting"></p>
   </div>
@@ -79,50 +82,40 @@
 
 <!-- Chat Widget -->
 <div id="chat-widget" aria-live="polite">
-  <button
-    id="chatToggle"
-    class="chat-toggle"
-    aria-label="Open chat"
-    aria-expanded="false"
-  >
-    <span class="chat-icon">💬</span>
-    <span
-      id="chatStatus"
-      class="chat-status offline"
-      aria-hidden="true"
-      title="Offline"
-    ></span>
-  </button>
+<button
+id="chatToggle"
+class="chat-toggle"
+aria-label="Open chat"
+aria-expanded="false"
+>
+<span class="chat-icon">💬</span>
+<span id="chatStatus" class="chat-status offline" aria-hidden="true"></span>
+</button>
 
-  <div id="chatWindow" class="chat-window" role="dialog" aria-modal="false">
-    <div class="chat-header">
-      <strong>Chat with Jimmy</strong>
-      <button id="chatClose" aria-label="Close chat">✕</button>
-    </div>
 
-    <div
-      id="chatMessages"
-      class="chat-messages"
-      role="log"
-      aria-live="polite"
-      aria-relevant="additions"
-    >
-      <div class="msg owner">
-        Hi 👋 Leave me a message and I’ll get back to you!
-      </div>
-    </div>
-
-    <form id="chatForm" class="chat-form" autocomplete="off">
-      <input
-        type="text"
-        id="chatInput"
-        placeholder="Write a message…"
-        required
-      />
-      <button type="submit" id="chatSend">Send</button>
-    </form>
-  </div>
+<div id="chatWindow" class="chat-window" role="dialog">
+<div class="chat-header">
+<strong>Chat with Jimmy</strong>
+<button id="chatClose" aria-label="Close chat">✕</button>
 </div>
+
+
+<div id="chatMessages" class="chat-messages">
+<div class="msg owner">
+Hi 👋 Leave your message below and I’ll reply soon.
+</div>
+</div>
+
+
+<form id="chatForm" class="chat-form">
+<input type="text" id="userName" placeholder="Your name" required />
+<input type="email" id="userEmail" placeholder="Your email" required />
+<textarea id="chatInput" placeholder="Type your message…" required></textarea>
+<button type="submit">Send</button>
+</form>
+</div>
+</div>
+
 
 
 <script src="script.js"></script>
