@@ -137,7 +137,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     emailjs
       .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
       .then(() => {
-        addMessage("✅ Message sent. I’ll get back to you soon!", "owner");
+        addMessage("✅ Message sent. I’ll send email to you soon!", "owner");
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
