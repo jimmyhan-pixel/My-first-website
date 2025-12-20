@@ -149,22 +149,20 @@ const $ = (id) => document.getElementById(id);
 
 
 
-// =============================
-// EMAILJS (BUG FIXED)
-// =============================
-(function initEmail() {
-  const btn = $("sendBtn");
-  if (!btn || typeof emailjs === "undefined") return;
+document.getElementById("sendBtn").addEventListener("click", function () {
+  const params = {
+    from_name: document.getElementById("name").value,
+    from_email: document.getElementById("email").value,
+    message: document.getElementById("message").value,
+  };
 
-  btn.addEventListener("click", () => {
-    const params = {
-      from_name: $("name")?.value || "",
-      from_email: $("email")?.value || "",
-      message: $("message")?.value || "",
-    };
-
-    emailjs.send("service_cy9g64j", "template_yoh85zc", params)
-      .then(() => $("status").textContent = "Message sent! 😊")
-      .catch(() => $("status").textContent = "Failed to send. Please try again.");
-  });
+  emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", params)
+    .then(() => {
+      document.getElementById("status").textContent =
+        "Message sent! 😊";
+    })
+    .catch(() => {
+      document.getElementById("status").textContent =
+        "Failed to send. Please try again.";
+    });
 })();
