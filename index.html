@@ -100,7 +100,7 @@ aria-expanded="false"
 
 <div id="chatMessages" class="chat-messages">
 <div class="msg owner">
-Hi 👋 Leave your message below and I’ll reply soon.
+Hi 👋 Leave your message and/or upload afile below and I’ll reply soon.
 </div>
 </div>
 
@@ -109,7 +109,15 @@ Hi 👋 Leave your message below and I’ll reply soon.
 <input type="text" id="userName" placeholder="Your name" required />
 <input type="email" id="userEmail" placeholder="Your email" required />
 <textarea id="chatInput" placeholder="Type your message…" required></textarea>
+
+<input
+  type="file"
+  id="chatFile"
+  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+/>
+
 <button type="submit">Send</button>
+
 </form>
 </div>
 </div>
