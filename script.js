@@ -156,7 +156,7 @@ document.getElementById("sendBtn").addEventListener("click", function () {
     message: document.getElementById("message").value,
   };
 
-  emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", params)
+  emailjs.send("service_cy9g64j", "template_yoh85zc", params)
     .then(() => {
       document.getElementById("status").textContent =
         "Message sent! 😊";
