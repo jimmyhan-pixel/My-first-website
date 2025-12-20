@@ -3,6 +3,11 @@
 // =============================
 const $ = (id) => document.getElementById(id);
 
+// EmailJS configuration — fill these with your real IDs to enable email delivery.
+// Leave empty to disable EmailJS and avoid runtime errors.
+const EMAILJS_SERVICE_ID = "service_cy9g64j"; // e.g. 'service_xxx'
+const EMAILJS_TEMPLATE_ID = "template_yoh85zc"; // e.g. 'template_xxx'
+
 // =============================
 // TIME-BASED GREETING (DOM-safe)
 // =============================
@@ -47,6 +52,8 @@ const $ = (id) => document.getElementById(id);
   const input = $("chatInput");
   const messages = $("chatMessages");
   const status = $("chatStatus");
+  const userNameEl = $("Jimmy");
+  const userEmailEl = $("y1722202@gmail.com");
 
   if (!widget || !toggle) return; // prevents silent JS crashes
 
@@ -118,12 +125,35 @@ const $ = (id) => document.getElementById(id);
     addMessage(text, "user");
     input.value = "";
 
+    // Attempt to send via WebSocket when available
     if (connected && ws?.readyState === WebSocket.OPEN) {
       ws.send(text);
     } else {
       setTimeout(() => {
         addMessage("I’m currently offline, but I’ll reply as soon as I’m available.", "owner");
       }, 400);
+    }
+
+    // If EmailJS is configured and available, send an email copy of the chat message.
+    try {
+      if (typeof emailjs !== "undefined" && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
+        const params = {
+          from_name: (userNameEl && userNameEl.value) || "Anonymous",
+          from_email: (userEmailEl && userEmailEl.value) || "",
+          message: text,
+        };
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+          .then(() => {
+            // optional: confirm by appending a small notice in chat
+            addMessage("(Your message was submitted via email.)", "owner");
+          })
+          .catch((err) => {
+            console.error("EmailJS send error:", err);
+            addMessage("(Failed to send email copy.)", "owner");
+          });
+      }
+    } catch (err) {
+      console.error("EmailJS integration error:", err);
     }
   });
 
@@ -149,20 +179,4 @@ const $ = (id) => document.getElementById(id);
 
 
 
-document.getElementById("sendBtn").addEventListener("click", function () {
-  const params = {
-    from_name: document.getElementById("name").value,
-    from_email: document.getElementById("email").value,
-    message: document.getElementById("message").value,
-  };
-
-  emailjs.send("service_cy9g64j", "template_yoh85zc", params)
-    .then(() => {
-      document.getElementById("status").textContent =
-        "Message sent! 😊";
-    })
-    .catch(() => {
-      document.getElementById("status").textContent =
-        "Failed to send. Please try again.";
-    });
-})();
+// Remove standalone sendBtn handler; EmailJS usage is handled from the chat submit handler above
