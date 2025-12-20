@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 // =============================
 // EmailJS CONFIG ✅ 必须完整
 // =============================
-const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY_HERE"; // ← 必填
+const EMAILJS_PUBLIC_KEY = "rBCzi8gk95ZNi_AbF"; // ← 必填
 const EMAILJS_SERVICE_ID = "service_cy9g64j";
 const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 
