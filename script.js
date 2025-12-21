@@ -101,12 +101,14 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
               types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }]
             });
           } catch (pickerErr) {
-            // user cancelled the picker or it's blocked — fallback to standard download flow
+            // user cancelled the picker or it's blocked — DO NOT proceed to download
             console.warn('Save picker cancelled or blocked:', pickerErr);
-            handle = null;
+            message.textContent = 'Save cancelled.';
+            form.reset();
+            return; // exit without fetching or downloading
           }
 
-          // Now fetch the resume
+          // Now fetch the resume (only if a handle was obtained)
           const res = await fetch(link.getAttribute('href'));
           if (!res.ok) throw new Error('Failed to fetch resume');
 
