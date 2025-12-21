@@ -62,6 +62,116 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 })();
 
 // =============================
+// RESUME DOWNLOAD LOGIC
+// =============================
+(function initResumeDownload() {
+  const form = document.getElementById("downloadForm");
+  const orgInput = document.getElementById("orgInput");
+  const titleInput = document.getElementById("titleInput");
+  const message = document.getElementById("downloadMessage");
+  const link = document.getElementById("resumeLink");
+
+  if (!form || !link) return;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const org = orgInput.value.trim();
+    const title = titleInput.value.trim();
+
+    if (!org || !title) {
+      message.textContent = "Please fill out both fields.";
+      return;
+    }
+
+    message.textContent = "Thank you! Preparing your download...";
+
+    // Try to prompt the native save-file picker first (preserving user gesture),
+    // then fetch and write the file. If picker is not available or fails, fall back
+    // to a standard blob download. This ordering prevents the picker being blocked
+    // on deployed sites where async work breaks the user gesture.
+    (async () => {
+      try {
+        if (window.showSaveFilePicker) {
+          // Prompt picker immediately while still in the user gesture
+          let handle;
+          try {
+            handle = await window.showSaveFilePicker({
+              suggestedName: 'Jimmy-Han-Resume.pdf',
+              types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }]
+            });
+          } catch (pickerErr) {
+            // user cancelled the picker or it's blocked — DO NOT proceed to download
+            console.warn('Save picker cancelled or blocked:', pickerErr);
+            message.textContent = 'Save cancelled.';
+            form.reset();
+            return; // exit without fetching or downloading
+          }
+
+          // Now fetch the resume (only if a handle was obtained)
+          const res = await fetch(link.getAttribute('href'));
+          if (!res.ok) throw new Error('Failed to fetch resume');
+
+          if (handle) {
+            try {
+              const writable = await handle.createWritable();
+              // write response body as stream if available for efficiency
+              if (res.body && writable.write) {
+                // If WritableStream supports single-write of ReadableStream, pipe
+                // Otherwise fall back to arrayBuffer
+                try {
+                  // Some environments allow piping directly
+                  const reader = res.body.getReader();
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    await writable.write(value);
+                  }
+                  await writable.close();
+                } catch (streamErr) {
+                  // Fallback: read full blob and write once
+                  const blob = await res.blob();
+                  await writable.write(blob);
+                  await writable.close();
+                }
+              } else {
+                const blob = await res.blob();
+                await writable.write(blob);
+                await writable.close();
+              }
+              message.textContent = 'Saved to chosen location. Thank you!';
+            } catch (fsErr) {
+              console.error('Error writing to file handle:', fsErr);
+              // If writing fails, DO NOT auto-download. Offer a manual link instead.
+              message.innerHTML = 'Save failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+              link.style.display = 'inline-block';
+            }
+          } else {
+            // No handle selected (shouldn't happen because we return on cancel),
+            // but avoid auto-downloading — show a manual link instead.
+            message.innerHTML = 'No file chosen — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+            link.style.display = 'inline-block';
+          }
+        } else {
+          // Browser doesn't support showSaveFilePicker — do not auto-download.
+          // Provide a manual download link so the user explicitly chooses to download.
+          message.innerHTML = 'Your browser cannot prompt a save dialog. <a href="' + link.getAttribute('href') + '" download>Click here to download</a>.';
+          link.style.display = 'inline-block';
+        }
+      } catch (err) {
+        console.error(err);
+        // fallback to the original anchor if fetch fails
+        message.innerHTML = 'Download failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to try manually.';
+        link.style.display = 'inline-block';
+      } finally {
+        form.reset();
+      }
+    })();
+  });
+})();
+
+
+// =============================
 // CHAT WIDGET + EMAILJS (✅ 稳定版)
 // =============================
 (function initChatWidget() {
