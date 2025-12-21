@@ -304,3 +304,34 @@ transform: translateY(0);
     width: 92%;
   }
 }
+/* =============================
+   FLOATING IMAGE CAROUSEL TRIGGER
+   ============================= */
+#carouselTrigger {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+
+  background: #2c3e50;
+  color: white;
+  font-size: 22px;
+
+  border: none;
+  cursor: pointer;
+  z-index: 999;
+
+  box-shadow: 0 8px 22px rgba(44, 62, 80, 0.25);
+}
+
+#carouselTrigger:hover {
+  background: #3498db;
+}
+
+#carouselTrigger:focus {
+  outline: 3px solid rgba(52, 152, 219, 0.35);
+}

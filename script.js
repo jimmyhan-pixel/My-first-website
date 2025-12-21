@@ -278,3 +278,14 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       });
   });
 })();
+// =============================
+// IMAGE CAROUSEL – STEP 1 TRIGGER
+// =============================
+(function initCarouselTrigger() {
+  const trigger = document.getElementById("carouselTrigger");
+  if (!trigger) return;
+
+  trigger.addEventListener("click", () => {
+    console.log("Carousel trigger clicked");
+  });
+})();
