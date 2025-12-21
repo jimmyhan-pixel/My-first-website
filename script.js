@@ -3,6 +3,15 @@
 // =============================
 const $ = (id) => document.getElementById(id);
 
+// ✅ ADD THIS HERE (ONCE)
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 // =============================
 // EmailJS CONFIG ✅ 必须完整
 // =============================
@@ -111,7 +120,8 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   // =============================
   // FORM SUBMIT → EMAILJS
   // =============================
-  form.addEventListener("submit", (e) => {
+  let ownerName = "Jimmy";
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
 
@@ -123,7 +133,17 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     sending = true;
 
     if (typeof emailjs === "undefined") {
-      addMessage("❌ Email service not available.", "owner");
+      addMessage("❌ Email service not available. "+ ownerName, "owner");
+      sending = false;
+      return;
+    }
+
+    const fileInput = document.getElementById("chatFile");
+    const file = fileInput?.files?.[0];
+
+    if (file) {
+      addMessage("❌ File uploads are not supported yet. Please email your file directly to me.", "owner");
+      fileInput.value = "";
       sending = false;
       return;
     }
@@ -137,11 +157,11 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     emailjs
       .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
       .then(() => {
-        addMessage("✅ Message sent. I’ll get back to you soon!", "owner");
+        addMessage("✅ Message sent. I’ll send email to you soon! "+ ownerName, "owner");
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
-        addMessage("❌ Failed to send message. Please try again later.", "owner");
+        addMessage("❌ Failed to send message. Please try again later. "+ ownerName, "owner");
       })
       .finally(() => {
         sending = false;
