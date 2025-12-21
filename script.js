@@ -142,45 +142,21 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
               message.textContent = 'Saved to chosen location. Thank you!';
             } catch (fsErr) {
               console.error('Error writing to file handle:', fsErr);
-              // If writing fails, fall back to blob download
-              const blob = await res.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = 'Jimmy-Han-Resume.pdf';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(blobUrl);
-              message.textContent = 'Download started. Thank you!';
+              // If writing fails, DO NOT auto-download. Offer a manual link instead.
+              message.innerHTML = 'Save failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+              link.style.display = 'inline-block';
             }
           } else {
-            // No handle selected: just perform a normal download
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = 'Jimmy-Han-Resume.pdf';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(blobUrl);
-            message.textContent = 'Download started. Thank you!';
+            // No handle selected (shouldn't happen because we return on cancel),
+            // but avoid auto-downloading — show a manual link instead.
+            message.innerHTML = 'No file chosen — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+            link.style.display = 'inline-block';
           }
         } else {
-          // Standard download fallback for browsers without the API
-          const res = await fetch(link.getAttribute('href'));
-          if (!res.ok) throw new Error('Failed to fetch resume');
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = 'Jimmy-Han-Resume.pdf';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(blobUrl);
-          message.textContent = 'Download started. Thank you!';
+          // Browser doesn't support showSaveFilePicker — do not auto-download.
+          // Provide a manual download link so the user explicitly chooses to download.
+          message.innerHTML = 'Your browser cannot prompt a save dialog. <a href="' + link.getAttribute('href') + '" download>Click here to download</a>.';
+          link.style.display = 'inline-block';
         }
       } catch (err) {
         console.error(err);
