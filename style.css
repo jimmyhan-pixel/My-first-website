@@ -357,16 +357,26 @@ transform: translateY(0);
 #carousel-container {
   position: fixed;
   top: 50%;
-  left: calc(50% - 450px); /* align with content column the location of the ring*/
+  left: calc(50% - 450px); /* keep your current alignment */
   transform: translateY(-50%);
 
   width: 600px;
   height: 360px;
 
   perspective: 1400px;
-  pointer-events: none;
+
   opacity: 0;
+  pointer-events: none;
+
+  transition: opacity 220ms ease;
 }
+
+/* Visible + clickable when opened */
+#carousel-container.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 
 
 /* Ring */
@@ -391,5 +401,9 @@ transform: translateY(0);
   transform-style: preserve-3d;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   transition: transform 0.4s ease;
+
+    cursor: pointer;
+  user-select: none;
+
 }
 
