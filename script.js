@@ -286,6 +286,31 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   if (!trigger) return;
 
   trigger.addEventListener("click", () => {
-    console.log("Carousel trigger clicked");
+    const container = document.getElementById("carousel-container");
+if (!container) return;
+
+container.style.opacity =
+  container.style.opacity === "1" ? "0" : "1";
+
+  });
+})();
+// =============================
+// IMAGE CAROUSEL – STEP 2 LAYOUT
+// =============================
+(function initCarouselLayout() {
+  const container = document.getElementById("carousel-container");
+  const images = container?.querySelectorAll("img");
+  if (!container || !images.length) return;
+
+  const count = images.length;
+  const radius = 260;
+
+  images.forEach((img, index) => {
+    const angle = (360 / count) * index;
+    img.style.transform = `
+      translate(-50%, -50%)
+      rotateY(${angle}deg)
+      translateZ(${radius}px)
+    `;
   });
 })();
