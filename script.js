@@ -314,3 +314,55 @@ container.style.opacity =
     `;
   });
 })();
+// =============================
+// IMAGE RING – STEP 2: OPEN + AUTO ROTATE
+// =============================
+
+const ringContainer = document.getElementById("carousel-container");
+const ring = document.querySelector(".carousel-ring");
+const ringButton = document.getElementById("carousel-trigger");
+
+let isOpen = false;
+let autoRotateTimer = null;
+let rotationY = 0;
+let rotationSpeed = 0.02; // slow left rotation
+
+// Toggle open / close
+ringButton.addEventListener("click", () => {
+  isOpen = !isOpen;
+
+  if (isOpen) {
+    ringContainer.classList.add("open");
+    startAutoRotate();
+  } else {
+    ringContainer.classList.remove("open");
+    stopAutoRotate();
+  }
+});
+
+// Auto-rotate logic
+function startAutoRotate() {
+  if (autoRotateTimer) return;
+
+  autoRotateTimer = setInterval(() => {
+    rotationY -= rotationSpeed;
+    ring.style.transform = `rotateY(${rotationY}rad)`;
+  }, 16); // ~60fps
+}
+
+function stopAutoRotate() {
+  clearInterval(autoRotateTimer);
+  autoRotateTimer = null;
+}
+
+// Pause on hover
+ringContainer.addEventListener("mouseenter", () => {
+  stopAutoRotate();
+});
+
+// Resume on leave
+ringContainer.addEventListener("mouseleave", () => {
+  if (isOpen) {
+    startAutoRotate();
+  }
+});
