@@ -62,6 +62,43 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 })();
 
 // =============================
+// RESUME DOWNLOAD LOGIC
+// =============================
+(function initResumeDownload() {
+  const form = document.getElementById("downloadForm");
+  const orgInput = document.getElementById("orgInput");
+  const titleInput = document.getElementById("titleInput");
+  const message = document.getElementById("downloadMessage");
+  const link = document.getElementById("resumeLink");
+
+  if (!form || !link) return;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const org = orgInput.value.trim();
+    const title = titleInput.value.trim();
+
+    if (!org || !title) {
+      message.textContent = "Please fill out both fields.";
+      return;
+    }
+
+    message.textContent = "Thank you! Your download will start.";
+
+    // Show the hidden link
+    link.style.display = "inline-block";
+
+    // Automatically click it
+    link.click();
+
+    // Optional: reset form
+    form.reset();
+  });
+})();
+
+
+// =============================
 // CHAT WIDGET + EMAILJS (✅ 稳定版)
 // =============================
 (function initChatWidget() {
