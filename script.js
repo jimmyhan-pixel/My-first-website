@@ -84,16 +84,33 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       return;
     }
 
-    message.textContent = "Thank you! Your download will start.";
+    message.textContent = "Thank you! Preparing your download...";
 
-    // Show the hidden link
-    link.style.display = "inline-block";
-
-    // Automatically click it
-    link.click();
-
-    // Optional: reset form
-    form.reset();
+    // Try to fetch the resume and trigger a programmatic download (more reliable than clicking a hidden link)
+    (async () => {
+      try {
+        const res = await fetch(link.getAttribute('href'));
+        if (!res.ok) throw new Error('Failed to fetch resume');
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        // prefer a friendly filename for the downloaded file
+        a.download = 'Jimmy-Han-Resume.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+        message.textContent = 'Download started. Thank you!';
+      } catch (err) {
+        console.error(err);
+        // fallback to the original anchor if fetch fails
+        message.innerHTML = 'Download failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to try manually.';
+        link.style.display = 'inline-block';
+      } finally {
+        form.reset();
+      }
+    })();
   });
 })();
 
