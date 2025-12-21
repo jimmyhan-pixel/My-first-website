@@ -335,3 +335,19 @@ transform: translateY(0);
 #carouselTrigger:focus {
   outline: 3px solid rgba(52, 152, 219, 0.35);
 }
+
+/* =============================
+   CAROUSEL VIEWPORT PORTAL
+   ============================= */
+#carousel-portal {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* portal ignores clicks */
+  z-index: 9999;
+}
+
+/* Re-enable clicks only on button */
+#carouselTrigger {
+  pointer-events: auto;
+}
+
