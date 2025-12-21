@@ -86,22 +86,52 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 
     message.textContent = "Thank you! Preparing your download...";
 
-    // Try to fetch the resume and trigger a programmatic download (more reliable than clicking a hidden link)
+    const chooseSave = document.getElementById('chooseSave');
+
+    // Try to fetch the resume and either let the user choose location (when supported)
+    // or trigger a normal download. Using an async IIFE keeps code simple.
     (async () => {
       try {
         const res = await fetch(link.getAttribute('href'));
         if (!res.ok) throw new Error('Failed to fetch resume');
         const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        // prefer a friendly filename for the downloaded file
-        a.download = 'Jimmy-Han-Resume.pdf';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(blobUrl);
-        message.textContent = 'Download started. Thank you!';
+
+        // If user requested to choose save location and the browser supports it
+        if (chooseSave?.checked && window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: 'Jimmy-Han-Resume.pdf',
+              types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            message.textContent = 'Saved to chosen location. Thank you!';
+          } catch (fsErr) {
+            console.error('Save picker error:', fsErr);
+            // Fallback to standard download below
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'Jimmy-Han-Resume.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+            message.textContent = 'Download started. Thank you!';
+          }
+        } else {
+          // Standard download fallback
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = 'Jimmy-Han-Resume.pdf';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+          message.textContent = 'Download started. Thank you!';
+        }
       } catch (err) {
         console.error(err);
         // fallback to the original anchor if fetch fails
