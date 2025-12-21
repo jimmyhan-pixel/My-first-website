@@ -86,18 +86,16 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 
     message.textContent = "Thank you! Preparing your download...";
 
-    const chooseSave = document.getElementById('chooseSave');
-
-    // Try to fetch the resume and either let the user choose location (when supported)
-    // or trigger a normal download. Using an async IIFE keeps code simple.
+    // Try to fetch the resume and prompt the native save-file picker when available,
+    // otherwise fall back to a normal download.
     (async () => {
       try {
         const res = await fetch(link.getAttribute('href'));
         if (!res.ok) throw new Error('Failed to fetch resume');
         const blob = await res.blob();
 
-        // If user requested to choose save location and the browser supports it
-        if (chooseSave?.checked && window.showSaveFilePicker) {
+        if (window.showSaveFilePicker) {
+          // Preferred: open native save dialog so user chooses where to save
           try {
             const handle = await window.showSaveFilePicker({
               suggestedName: 'Jimmy-Han-Resume.pdf',
@@ -108,8 +106,8 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
             await writable.close();
             message.textContent = 'Saved to chosen location. Thank you!';
           } catch (fsErr) {
-            console.error('Save picker error:', fsErr);
-            // Fallback to standard download below
+            // If user cancels or an error occurs, fall back to the standard download
+            console.error('Save picker error or cancelled:', fsErr);
             const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -121,7 +119,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
             message.textContent = 'Download started. Thank you!';
           }
         } else {
-          // Standard download fallback
+          // Standard download fallback for browsers without the API
           const blobUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = blobUrl;
