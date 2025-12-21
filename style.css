@@ -356,16 +356,18 @@ transform: translateY(0);
 
 #carousel-container {
   position: fixed;
-  left: 120px;
   top: 50%;
+  left: calc(50% - 450px); /* align with content column the location of the ring*/
   transform: translateY(-50%);
-  width: 420px;
-  height: 260px;
 
-  perspective: 1000px;
-  pointer-events: none; /* no interaction yet */
+  width: 600px;
+  height: 360px;
+
+  perspective: 1400px;
+  pointer-events: none;
   opacity: 0;
 }
+
 
 /* Ring */
 .carousel-ring {
@@ -381,8 +383,8 @@ transform: translateY(0);
   top: 50%;
   left: 50%;
 
-  width: 160px;
-  height: 100px;
+  width: 220px;
+  height: 140px;
   object-fit: cover;
   border-radius: 10px;
 

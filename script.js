@@ -303,7 +303,7 @@ container.style.opacity =
   if (!container || !images.length) return;
 
   const count = images.length;
-  const radius = 260;
+  const radius = 380;
 
   images.forEach((img, index) => {
     const angle = (360 / count) * index;
