@@ -392,14 +392,5 @@ function stopAutoRotate() {
   autoRotateTimer = null;
 }
 
-// Pause on hover
-ringContainer.addEventListener("mouseenter", () => {
-  stopAutoRotate();
-});
+// (Duplicate unguarded hover listeners removed – guarded versions remain earlier)
 
-// Resume on leave
-ringContainer.addEventListener("mouseleave", () => {
-  if (isOpen) {
-    startAutoRotate();
-  }
-});
