@@ -293,10 +293,15 @@ let rotationSpeed = 0.02; // slow left rotation
 
 (function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
-  if (!trigger || !ringContainer) return;
+  if (!trigger || !ringContainer) {
+    console.warn('[carousel] init aborted — missing elements', { trigger: !!trigger, ringContainer: !!ringContainer });
+    return;
+  }
 
+  console.log('[carousel] initCarouselTrigger: ready');
   trigger.addEventListener("click", () => {
     isOpen = !isOpen;
+    console.log('[carousel] trigger clicked — isOpen=', isOpen);
     if (isOpen) {
       ringContainer.classList.add("open");
       startAutoRotate();
@@ -341,6 +346,8 @@ let rotationSpeed = 0.02; // slow left rotation
   container.style.width = containerSize + 'px';
   container.style.height = containerSize + 'px';
 
+  console.log('[carousel] layout:', { count, imgW, imgH, gap, radius, containerSize });
+
   images.forEach((img, index) => {
     const angle = (360 / count) * index;
     img.style.transform = `
@@ -371,14 +378,16 @@ if (ringContainer) {
 // Auto-rotate logic
 function startAutoRotate() {
   if (autoRotateTimer) return;
+  console.log('[carousel] startAutoRotate');
 
   autoRotateTimer = setInterval(() => {
     rotationY -= rotationSpeed;
-    ring.style.transform = `rotateY(${rotationY}rad)`;
+    if (ring) ring.style.transform = `rotateY(${rotationY}rad)`;
   }, 16); // ~60fps
 }
 
 function stopAutoRotate() {
+  console.log('[carousel] stopAutoRotate');
   clearInterval(autoRotateTimer);
   autoRotateTimer = null;
 }
