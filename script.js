@@ -279,69 +279,21 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   });
 })();
 // =============================
-// IMAGE CAROUSEL – STEP 2: OPEN + AUTO ROTATE (FIXED)
+// IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
-(function initCarouselOpenAndRotate() {
+(function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
-  const container = document.getElementById("carousel-container");
-  const ring = container?.querySelector(".carousel-ring");
+  if (!trigger) return;
 
-  if (!trigger || !container || !ring) return;
-
-  let isOpen = false;
-  let isPaused = false;
-
-  // rotation state
-  let rotY = 0;          // in degrees
-  let speed = 0.12;      // degrees per frame (slow left)
-  let rafId = null;
-
-  function animate() {
-    if (!isPaused) {
-      rotY -= speed; // left rotation
-      ring.style.transform = `rotateY(${rotY}deg)`;
-    }
-    rafId = requestAnimationFrame(animate);
-  }
-
-  function start() {
-    if (rafId) return;
-    rafId = requestAnimationFrame(animate);
-  }
-
-  function stop() {
-    if (!rafId) return;
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-
-  // open/close
   trigger.addEventListener("click", () => {
-    isOpen = !isOpen;
+    const container = document.getElementById("carousel-container");
+if (!container) return;
 
-    if (isOpen) {
-      container.classList.add("open");
-      container.setAttribute("aria-hidden", "false");
-      isPaused = false;
-      start();
-    } else {
-      container.classList.remove("open");
-      container.setAttribute("aria-hidden", "true");
-      stop();
-    }
-  });
+container.style.opacity =
+  container.style.opacity === "1" ? "0" : "1";
 
-  // pause on hover
-  container.addEventListener("mouseenter", () => {
-    isPaused = true;
-  });
-
-  // resume on leave
-  container.addEventListener("mouseleave", () => {
-    if (isOpen) isPaused = false;
   });
 })();
-
 // =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
 // =============================
