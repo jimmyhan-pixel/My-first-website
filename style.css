@@ -357,11 +357,14 @@ transform: translateY(0);
 #carousel-container {
   position: fixed;
   top: 50%;
-  left: calc(50% - 450px); /* keep your current alignment */
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
 
-  width: 600px;
-  height: 360px;
+  /* size is computed in JS to match image scale and radius */
+  width: auto;
+  height: auto;
+  min-width: 320px;
+  min-height: 220px;
 
   perspective: 1400px;
 
@@ -369,7 +372,7 @@ transform: translateY(0);
   pointer-events: none;
 
   transition: opacity 220ms ease;
-}
+} 
 
 /* Visible + clickable when opened */
 #carousel-container.open {
@@ -393,8 +396,12 @@ transform: translateY(0);
   top: 50%;
   left: 50%;
 
-  width: 220px;
-  height: 140px;
+  /* base sizes (used if JS not available) */
+  --carousel-img-w: 220px;
+  --carousel-img-h: 140px;
+
+  width: var(--carousel-img-w);
+  height: var(--carousel-img-h);
   object-fit: cover;
   border-radius: 10px;
 
@@ -402,8 +409,8 @@ transform: translateY(0);
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   transition: transform 0.4s ease;
 
-    cursor: pointer;
+  cursor: pointer;
   user-select: none;
 
-}
+} 
 

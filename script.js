@@ -281,17 +281,29 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
 // =============================
 // IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
+// ring globals (available to trigger/layout/hover logic)
+const ringContainer = document.getElementById("carousel-container");
+const ring = document.querySelector(".carousel-ring");
+const ringButton = document.getElementById("carouselTrigger");
+
+let isOpen = false;
+let autoRotateTimer = null;
+let rotationY = 0;
+let rotationSpeed = 0.02; // slow left rotation
+
 (function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
-  if (!trigger) return;
+  if (!trigger || !ringContainer) return;
 
   trigger.addEventListener("click", () => {
-    const container = document.getElementById("carousel-container");
-if (!container) return;
-
-container.style.opacity =
-  container.style.opacity === "1" ? "0" : "1";
-
+    isOpen = !isOpen;
+    if (isOpen) {
+      ringContainer.classList.add("open");
+      startAutoRotate();
+    } else {
+      ringContainer.classList.remove("open");
+      stopAutoRotate();
+    }
   });
 })();
 // =============================
@@ -303,7 +315,31 @@ container.style.opacity =
   if (!container || !images.length) return;
 
   const count = images.length;
-  const radius = 380;
+  const scale = 1.5; // enlarge by 50%
+  const gap = 20; // px between images
+
+  // base sizes to match CSS fallback
+  const baseW = 220;
+  const baseH = 140;
+
+  const imgW = Math.round(baseW * scale);
+  const imgH = Math.round(baseH * scale);
+
+  // set actual sizes (override CSS fallback)
+  images.forEach((img) => {
+    img.style.width = imgW + 'px';
+    img.style.height = imgH + 'px';
+  });
+
+  // compute minimal radius so images don't touch but aren't too far
+  const circumferenceNeeded = count * (imgW + gap);
+  let radius = Math.max(circumferenceNeeded / (2 * Math.PI), imgW * 0.9);
+  radius = Math.round(radius + Math.max(16, imgW * 0.04));
+
+  // size the container to comfortably fit the ring
+  const containerSize = Math.round(radius * 2 + imgH * 1.2);
+  container.style.width = containerSize + 'px';
+  container.style.height = containerSize + 'px';
 
   images.forEach((img, index) => {
     const angle = (360 / count) * index;
@@ -318,27 +354,19 @@ container.style.opacity =
 // IMAGE RING – STEP 2: OPEN + AUTO ROTATE
 // =============================
 
-const ringContainer = document.getElementById("carousel-container");
-const ring = document.querySelector(".carousel-ring");
-const ringButton = document.getElementById("carousel-trigger");
-
-let isOpen = false;
-let autoRotateTimer = null;
-let rotationY = 0;
-let rotationSpeed = 0.02; // slow left rotation
-
-// Toggle open / close
-ringButton.addEventListener("click", () => {
-  isOpen = !isOpen;
-
-  if (isOpen) {
-    ringContainer.classList.add("open");
-    startAutoRotate();
-  } else {
-    ringContainer.classList.remove("open");
+// (ring variables declared above)
+// Pause on hover + resume only when open
+if (ringContainer) {
+  ringContainer.addEventListener("mouseenter", () => {
     stopAutoRotate();
-  }
-});
+  });
+
+  ringContainer.addEventListener("mouseleave", () => {
+    if (isOpen) {
+      startAutoRotate();
+    }
+  });
+}
 
 // Auto-rotate logic
 function startAutoRotate() {
