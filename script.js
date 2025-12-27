@@ -278,7 +278,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       });
   });
 })();
-// // =============================
+// =============================
 // IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
 // ring globals (available to trigger/layout/hover logic)
@@ -364,6 +364,8 @@ function setCarouselOpenState(nextOpen) {
     img.dataset.angle = String(angle);
     img.style.setProperty("--carousel-angle", `${angle}deg`);
     img.style.setProperty("--carousel-radius", `${radius}px`);
+    img.style.setProperty("--carousel-scale", "1");
+    img.style.transform = `translate(-50%, -50%) rotateY(${angle}deg) translateZ(${radius}px) scale(var(--carousel-scale))`;
   });
 })();
 // =============================
@@ -448,4 +450,5 @@ document.addEventListener("click", (event) => {
 });
 
 // (Duplicate unguarded hover listeners removed – guarded versions remain earlier)
+
 
