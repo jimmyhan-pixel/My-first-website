@@ -278,10 +278,11 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       });
   });
 })();
-// =============================
+// // =============================
 // IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
 // ring globals (available to trigger/layout/hover logic)
+const ringPortal = document.getElementById("carousel-portal");
 const ringContainer = document.getElementById("carousel-container");
 const ring = document.querySelector(".carousel-ring");
 const ringButton = document.getElementById("carouselTrigger");
@@ -289,7 +290,23 @@ const ringButton = document.getElementById("carouselTrigger");
 let isOpen = false;
 let autoRotateTimer = null;
 let rotationY = 0;
-let rotationSpeed = 0.008; // slower left rotation
+let rotationSpeed = 0.004; // slower left rotation
+
+function setCarouselOpenState(nextOpen) {
+  isOpen = nextOpen;
+  if (isOpen) {
+    ringPortal?.classList.add("open");
+    ringContainer?.classList.add("open");
+    ringContainer?.setAttribute("aria-hidden", "false");
+    startAutoRotate();
+  } else {
+    ringPortal?.classList.remove("open");
+    ringContainer?.classList.remove("open");
+    ringContainer?.setAttribute("aria-hidden", "true");
+    clearActiveImage();
+    stopAutoRotate();
+  }
+}
 
 (function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
@@ -299,16 +316,10 @@ let rotationSpeed = 0.008; // slower left rotation
   }
 
   console.log('[carousel] initCarouselTrigger: ready');
-  trigger.addEventListener("click", () => {
-    isOpen = !isOpen;
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setCarouselOpenState(!isOpen);
     console.log('[carousel] trigger clicked — isOpen=', isOpen);
-    if (isOpen) {
-      ringContainer.classList.add("open");
-      startAutoRotate();
-    } else {
-      ringContainer.classList.remove("open");
-      stopAutoRotate();
-    }
   });
 })();
 // =============================
@@ -350,11 +361,9 @@ let rotationSpeed = 0.008; // slower left rotation
 
   images.forEach((img, index) => {
     const angle = (360 / count) * index;
-    img.style.transform = `
-      translate(-50%, -50%)
-      rotateY(${angle}deg)
-      translateZ(${radius}px)
-    `;
+    img.dataset.angle = String(angle);
+    img.style.setProperty("--carousel-angle", `${angle}deg`);
+    img.style.setProperty("--carousel-radius", `${radius}px`);
   });
 })();
 // =============================
@@ -370,8 +379,13 @@ if (ringContainer) {
 
   ringContainer.addEventListener("mouseleave", () => {
     if (isOpen) {
+      clearActiveImage();
       startAutoRotate();
     }
+  });
+
+  ringContainer.addEventListener("click", (event) => {
+    event.stopPropagation();
   });
 }
 
@@ -380,6 +394,7 @@ function startAutoRotate() {
   if (autoRotateTimer) return;
   console.log('[carousel] startAutoRotate');
 
+  ring?.classList.remove("snap");
   autoRotateTimer = setInterval(() => {
     rotationY -= rotationSpeed;
     if (ring) ring.style.transform = `rotateY(${rotationY}rad)`;
@@ -392,4 +407,45 @@ function stopAutoRotate() {
   autoRotateTimer = null;
 }
 
+function clearActiveImage() {
+  if (!ring) return;
+  const active = ring.querySelector(".is-active");
+  if (active) active.classList.remove("is-active");
+}
+
+function focusImage(img) {
+  if (!img || !ring) return;
+  const angle = Number(img.dataset.angle || 0);
+  stopAutoRotate();
+  clearActiveImage();
+  img.classList.add("is-active");
+
+  const targetRotation = -angle * (Math.PI / 180);
+  rotationY = targetRotation;
+  ring.classList.add("snap");
+  ring.style.transform = `rotateY(${rotationY}rad)`;
+
+  setTimeout(() => {
+    ring.classList.remove("snap");
+  }, 700);
+}
+
+if (ring) {
+  ring.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLImageElement) {
+      focusImage(target);
+    }
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (!isOpen) return;
+  const target = event.target;
+  if (ringContainer?.contains(target)) return;
+  if (ringButton && target === ringButton) return;
+  setCarouselOpenState(false);
+});
+
 // (Duplicate unguarded hover listeners removed – guarded versions remain earlier)
+
