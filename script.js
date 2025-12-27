@@ -289,7 +289,7 @@ const ringButton = document.getElementById("carouselTrigger");
 let isOpen = false;
 let autoRotateTimer = null;
 let rotationY = 0;
-let rotationSpeed = 0.02; // slow left rotation
+let rotationSpeed = 0.008; // slower left rotation
 
 (function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
@@ -393,4 +393,3 @@ function stopAutoRotate() {
 }
 
 // (Duplicate unguarded hover listeners removed – guarded versions remain earlier)
-
