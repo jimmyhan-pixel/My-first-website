@@ -1,21 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
-<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-<script>
-  (function(){
-    emailjs.init("rBCzi8gk95ZNi_AbF");
-  })();
-</script>
-
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jimmy Han - Portfolio</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="images/img1.png" sizes="32x32" type="image/png">
+  <link rel="shortcut icon" href="images/img1.png" type="image/png">
 </head>
 <body>
 
@@ -34,7 +29,7 @@
     <div class="content-wrapper">
       <p>
         Hi! I'm Jimmy, based in Brooklyn. I'm transitioning from customer service
-        into AI-related fields and enjoy learning by building small projects like this one.
+        into AI-related fields & enjoy learning by building small projects like this one.
       </p>
       
     </div>
@@ -122,8 +117,28 @@ Hi 👋 Leave your message and/or upload afile below and I’ll reply soon.
 </div>
 </div>
 
+<!-- Floating Carousel Trigger -->
+<div id="carousel-portal">
+  <button id="carouselTrigger" aria-label="Open image carousel">
+    ⭕
+  </button>
+  <div id="carousel-container" aria-hidden="true">
+  <div class="carousel-ring">
+    <img src="images/img1.png" alt="">
+    <img src="images/img2.png" alt="">
+    <img src="images/img3.png" alt="">
+    <img src="images/img4.png" alt="">
+    <img src="images/img5.png" alt="">
+    <img src="images/img6.png" alt="">
+    <img src="images/img7.png" alt="">
+    <img src="images/img8.png" alt="">
+  </div>
+</div>
+
+</div>
 
 
-<script src="script.js"></script>
+
+<script defer src="script.js?v=1.5"></script>
 </body>
 </html>

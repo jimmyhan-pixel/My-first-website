@@ -278,3 +278,237 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
       });
   });
 })();
+// =============================
+// IMAGE CAROUSEL – STEP 1 TRIGGER
+// =============================
+// ring globals (available to trigger/layout/hover logic)
+const ringPortal = document.getElementById("carousel-portal");
+const ringContainer = document.getElementById("carousel-container");
+const ring = document.querySelector(".carousel-ring");
+const ringButton = document.getElementById("carouselTrigger");
+
+let isOpen = false;
+let autoRotateTimer = null;
+let rotationY = 0;
+let rotationSpeed = 0.004; // slower left rotation
+
+function setCarouselOpenState(nextOpen) {
+  isOpen = nextOpen;
+  if (isOpen) {
+    ringPortal?.classList.add("open");
+    ringContainer?.classList.add("open");
+    ringContainer?.setAttribute("aria-hidden", "false");
+    startAutoRotate();
+  } else {
+    ringPortal?.classList.remove("open");
+    ringContainer?.classList.remove("open");
+    ringContainer?.setAttribute("aria-hidden", "true");
+    clearActiveImage();
+    stopAutoRotate();
+  }
+}
+
+(function initCarouselTrigger() {
+  const trigger = document.getElementById("carouselTrigger");
+  if (!trigger || !ringContainer) {
+    console.warn('[carousel] init aborted — missing elements', { trigger: !!trigger, ringContainer: !!ringContainer });
+    return;
+  }
+
+  console.log('[carousel] initCarouselTrigger: ready');
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setCarouselOpenState(!isOpen);
+    console.log('[carousel] trigger clicked — isOpen=', isOpen);
+  });
+})();
+// =============================
+// IMAGE CAROUSEL – STEP 2 LAYOUT
+// =============================
+(function initCarouselLayout() {
+  const container = document.getElementById("carousel-container");
+  const images = container?.querySelectorAll("img");
+  if (!container || !images.length) return;
+
+  const count = images.length;
+  const scale = 1.5; // enlarge by 50%
+  const gap = 20; // px between images
+
+  // base sizes to match CSS fallback
+  const baseW = 220;
+  const baseH = 140;
+
+  const imgW = Math.round(baseW * scale);
+  const imgH = Math.round(baseH * scale);
+
+  // set actual sizes (override CSS fallback)
+  images.forEach((img) => {
+    img.style.width = imgW + 'px';
+    img.style.height = imgH + 'px';
+  });
+
+  // compute minimal radius so images don't touch but aren't too far
+  const circumferenceNeeded = count * (imgW + gap);
+  let radius = Math.max(circumferenceNeeded / (2 * Math.PI), imgW * 0.9);
+  radius = Math.round(radius + Math.max(16, imgW * 0.04));
+
+  // size the container to comfortably fit the ring
+  const containerSize = Math.round(radius * 2 + imgH * 1.2);
+  container.style.width = containerSize + 'px';
+  container.style.height = containerSize + 'px';
+
+  console.log('[carousel] layout:', { count, imgW, imgH, gap, radius, containerSize });
+
+  images.forEach((img, index) => {
+    const angle = (360 / count) * index;
+    img.dataset.angle = String(angle);
+    img.style.setProperty("--carousel-angle", `${angle}deg`);
+    img.style.setProperty("--carousel-radius", `${radius}px`);
+    img.style.setProperty("--carousel-scale", "1");
+    img.style.transform = `translate(-50%, -50%) rotateY(${angle}deg) translateZ(${radius}px) scale(var(--carousel-scale))`;
+  });
+})();
+// =============================
+// IMAGE RING – STEP 2: OPEN + AUTO ROTATE
+// =============================
+
+// Pause on hover + resume only when open
+if (ringContainer) {
+  ringContainer.addEventListener("mouseenter", () => {
+    stopAutoRotate(); // 保留你原本“悬停暂停”的设计
+  });
+
+  ringContainer.addEventListener("mouseleave", () => {
+    // 离开时如果是打开状态，继续自动旋转
+    if (isOpen) {
+      clearActiveImage();
+      startAutoRotate();
+    }
+  });
+
+  // ✅ 不再允许点击 container 关闭 carousel
+  // 仅阻止冒泡即可（避免影响其他点击逻辑）
+  ringContainer.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+}
+
+// Auto-rotate logic
+function startAutoRotate() {
+  if (autoRotateTimer) return;
+  console.log("[carousel] startAutoRotate");
+
+  ring?.classList.remove("snap");
+  autoRotateTimer = setInterval(() => {
+    rotationY -= rotationSpeed;
+    if (ring) ring.style.transform = `rotateY(${rotationY}rad)`;
+  }, 16); // ~60fps
+}
+
+function stopAutoRotate() {
+  console.log("[carousel] stopAutoRotate");
+  clearInterval(autoRotateTimer);
+  autoRotateTimer = null;
+}
+
+// ✅ 清除激活图片：恢复所有图片到正常大小
+function clearActiveImage() {
+  if (!ring) return;
+  ring.querySelectorAll("img").forEach((img) => {
+    img.classList.remove("is-active");
+    img.style.setProperty("--carousel-scale", "1");
+  });
+}
+
+// ✅ 聚焦图片：停止旋转 + 放大 40%
+function focusImage(img) {
+  if (!img || !ring) return;
+  const angle = Number(img.dataset.angle || 0);
+
+  stopAutoRotate();
+  clearActiveImage();
+
+  img.classList.add("is-active");
+  img.style.setProperty("--carousel-scale", "1.4"); // ✅ 40% bigger
+
+  const targetRotation = -angle * (Math.PI / 180);
+  rotationY = targetRotation;
+
+  ring.classList.add("snap");
+  ring.style.transform = `rotateY(${rotationY}rad)`;
+
+  setTimeout(() => {
+    ring.classList.remove("snap");
+  }, 700);
+}
+
+// =============================
+// ✅ FIX #2: 鼠标滑动触发方向翻转（速度不变）
+// 逻辑：当“滑动方向” ≠ “当前旋转方向”时才翻转
+// =============================
+let lastMouseX = null;
+const MOUSE_DIR_THRESHOLD = 2; // px 防抖
+
+// 说明：你原来注释写 rotationSpeed=0.004 是“left rotation”
+// 所以这里约定：rotationSpeed > 0 代表“向左”，<0 代表“向右”
+function getRotateDirLR() {
+  return rotationSpeed > 0 ? -1 : 1; // -1=left, 1=right
+}
+
+function flipRotateDirKeepSpeed() {
+  rotationSpeed = -rotationSpeed; // ✅ 只翻转正负号，速度大小不变
+}
+
+if (ring) {
+  // ✅ 点击图片只做一件事：focus（不关闭 carousel）
+  ring.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLImageElement) {
+      focusImage(target);
+    }
+  });
+
+  // ✅ 在图片上滑动：如果方向不一致就翻转方向
+  ring.querySelectorAll("img").forEach((img) => {
+    img.addEventListener("mouseenter", () => {
+      lastMouseX = null;
+    });
+
+    img.addEventListener("mousemove", (event) => {
+      if (!isOpen) return;
+
+      // 你原本 hover 会 stopAutoRotate()
+      // 为了让“滑动改变方向”可见：只要你开始滑动，就恢复旋转
+      if (!autoRotateTimer) startAutoRotate();
+
+      if (lastMouseX === null) {
+        lastMouseX = event.clientX;
+        return;
+      }
+
+      const deltaX = event.clientX - lastMouseX;
+      if (Math.abs(deltaX) < MOUSE_DIR_THRESHOLD) return;
+
+      const mouseDir = deltaX > 0 ? 1 : -1; // 1=right, -1=left
+      const rotDir = getRotateDirLR();       // 1=right, -1=left
+
+      // ✅ 只有不一致才翻转（你要求的触发逻辑）
+      if (mouseDir !== rotDir) {
+        flipRotateDirKeepSpeed();
+      }
+
+      lastMouseX = event.clientX;
+    });
+  });
+}
+
+// =============================
+// ✅ FIX #1: 删除“点击任意地方关闭”
+// 关闭 carousel 只能由按钮 ringButton 的 toggle 逻辑完成
+// =============================
+
+// ❌ 删除你原来的 document click 关闭逻辑（不要再加回来）
+// document.addEventListener("click", ... setCarouselOpenState(false));
+
+
+
