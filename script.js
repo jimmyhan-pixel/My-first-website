@@ -372,20 +372,22 @@ function setCarouselOpenState(nextOpen) {
 // IMAGE RING – STEP 2: OPEN + AUTO ROTATE
 // =============================
 
-// (ring variables declared above)
 // Pause on hover + resume only when open
 if (ringContainer) {
   ringContainer.addEventListener("mouseenter", () => {
-    stopAutoRotate();
+    stopAutoRotate(); // 保留你原本“悬停暂停”的设计
   });
 
   ringContainer.addEventListener("mouseleave", () => {
+    // 离开时如果是打开状态，继续自动旋转
     if (isOpen) {
       clearActiveImage();
       startAutoRotate();
     }
   });
 
+  // ✅ 不再允许点击 container 关闭 carousel
+  // 仅阻止冒泡即可（避免影响其他点击逻辑）
   ringContainer.addEventListener("click", (event) => {
     event.stopPropagation();
   });
@@ -394,7 +396,7 @@ if (ringContainer) {
 // Auto-rotate logic
 function startAutoRotate() {
   if (autoRotateTimer) return;
-  console.log('[carousel] startAutoRotate');
+  console.log("[carousel] startAutoRotate");
 
   ring?.classList.remove("snap");
   autoRotateTimer = setInterval(() => {
@@ -404,26 +406,34 @@ function startAutoRotate() {
 }
 
 function stopAutoRotate() {
-  console.log('[carousel] stopAutoRotate');
+  console.log("[carousel] stopAutoRotate");
   clearInterval(autoRotateTimer);
   autoRotateTimer = null;
 }
 
+// ✅ 清除激活图片：恢复所有图片到正常大小
 function clearActiveImage() {
   if (!ring) return;
-  const active = ring.querySelector(".is-active");
-  if (active) active.classList.remove("is-active");
+  ring.querySelectorAll("img").forEach((img) => {
+    img.classList.remove("is-active");
+    img.style.setProperty("--carousel-scale", "1");
+  });
 }
 
+// ✅ 聚焦图片：停止旋转 + 放大 40%
 function focusImage(img) {
   if (!img || !ring) return;
   const angle = Number(img.dataset.angle || 0);
+
   stopAutoRotate();
   clearActiveImage();
+
   img.classList.add("is-active");
+  img.style.setProperty("--carousel-scale", "1.4"); // ✅ 40% bigger
 
   const targetRotation = -angle * (Math.PI / 180);
   rotationY = targetRotation;
+
   ring.classList.add("snap");
   ring.style.transform = `rotateY(${rotationY}rad)`;
 
@@ -432,23 +442,73 @@ function focusImage(img) {
   }, 700);
 }
 
+// =============================
+// ✅ FIX #2: 鼠标滑动触发方向翻转（速度不变）
+// 逻辑：当“滑动方向” ≠ “当前旋转方向”时才翻转
+// =============================
+let lastMouseX = null;
+const MOUSE_DIR_THRESHOLD = 2; // px 防抖
+
+// 说明：你原来注释写 rotationSpeed=0.004 是“left rotation”
+// 所以这里约定：rotationSpeed > 0 代表“向左”，<0 代表“向右”
+function getRotateDirLR() {
+  return rotationSpeed > 0 ? -1 : 1; // -1=left, 1=right
+}
+
+function flipRotateDirKeepSpeed() {
+  rotationSpeed = -rotationSpeed; // ✅ 只翻转正负号，速度大小不变
+}
+
 if (ring) {
+  // ✅ 点击图片只做一件事：focus（不关闭 carousel）
   ring.addEventListener("click", (event) => {
     const target = event.target;
     if (target instanceof HTMLImageElement) {
       focusImage(target);
     }
   });
+
+  // ✅ 在图片上滑动：如果方向不一致就翻转方向
+  ring.querySelectorAll("img").forEach((img) => {
+    img.addEventListener("mouseenter", () => {
+      lastMouseX = null;
+    });
+
+    img.addEventListener("mousemove", (event) => {
+      if (!isOpen) return;
+
+      // 你原本 hover 会 stopAutoRotate()
+      // 为了让“滑动改变方向”可见：只要你开始滑动，就恢复旋转
+      if (!autoRotateTimer) startAutoRotate();
+
+      if (lastMouseX === null) {
+        lastMouseX = event.clientX;
+        return;
+      }
+
+      const deltaX = event.clientX - lastMouseX;
+      if (Math.abs(deltaX) < MOUSE_DIR_THRESHOLD) return;
+
+      const mouseDir = deltaX > 0 ? 1 : -1; // 1=right, -1=left
+      const rotDir = getRotateDirLR();       // 1=right, -1=left
+
+      // ✅ 只有不一致才翻转（你要求的触发逻辑）
+      if (mouseDir !== rotDir) {
+        flipRotateDirKeepSpeed();
+      }
+
+      lastMouseX = event.clientX;
+    });
+  });
 }
 
-document.addEventListener("click", (event) => {
-  if (!isOpen) return;
-  const target = event.target;
-  if (ringContainer?.contains(target)) return;
-  if (ringButton && target === ringButton) return;
-  setCarouselOpenState(false);
-});
+// =============================
+// ✅ FIX #1: 删除“点击任意地方关闭”
+// 关闭 carousel 只能由按钮 ringButton 的 toggle 逻辑完成
+// =============================
 
-// (Duplicate unguarded hover listeners removed – guarded versions remain earlier)
+// ❌ 删除你原来的 document click 关闭逻辑（不要再加回来）
+// document.addEventListener("click", ... setCarouselOpenState(false));
+
 
 
