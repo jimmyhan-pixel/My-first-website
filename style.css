@@ -421,7 +421,7 @@ transform: translateY(0);
   position: fixed;
   top: 14px;
   right: 14px;
-  z-index: 2000;
+  z-index: 99999;
 
   display: flex;
   gap: 8px;

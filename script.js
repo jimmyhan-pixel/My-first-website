@@ -50,33 +50,47 @@ trackVisit();
   const btnEl = document.getElementById("adminLoginBtn");
   const msgEl = document.getElementById("adminLoginMsg");
 
-  if (!emailEl || !passEl || !btnEl) return;
+  if (!emailEl || !passEl || !btnEl) {
+    console.warn("[admin] login elements not found");
+    return;
+  }
 
   btnEl.addEventListener("click", async () => {
     const email = emailEl.value.trim();
     const password = passEl.value;
+
+    if (msgEl) msgEl.textContent = "";
 
     if (!email || !password) {
       if (msgEl) msgEl.textContent = "Please enter email + password.";
       return;
     }
 
-    if (msgEl) msgEl.textContent = "Signing in...";
+    try {
+      if (msgEl) msgEl.textContent = "Signing in...";
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      console.warn("[admin] login failed:", error);
-      if (msgEl) msgEl.textContent = "Login failed. Check credentials.";
-      return;
+      if (error) {
+        console.warn("[admin] login failed:", error);
+        if (msgEl) msgEl.textContent = `Login failed: ${error.message}`;
+        return;
+      }
+
+      if (!data?.session) {
+        if (msgEl) msgEl.textContent = "No session returned.";
+        return;
+      }
+
+      if (msgEl) msgEl.textContent = "Success! Redirecting...";
+      window.location.href = "admin.html";
+    } catch (e) {
+      console.error("[admin] unexpected error:", e);
+      if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
     }
-
-    if (msgEl) msgEl.textContent = "Success! Redirecting...";
-    // ✅ Go to admin dashboard page
-    window.location.href = "admin.html";
   });
 })();
 
