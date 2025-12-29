@@ -1,6 +1,29 @@
 // =============================
 // GLOBAL SAFE HELPERS
 // =============================
+
+// =============================
+// SUPABASE INIT
+// =============================
+const SUPABASE_URL = "https://wumakgzighvtvtvprnri.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
+async function trackVisit() {
+  try {
+    await supabaseClient
+      .from("site_visits")
+      .insert([{ path: location.pathname }]);
+  } catch (err) {
+    console.warn("Visit tracking failed:", err);
+  }
+}
+trackVisit();
+
 const $ = (id) => document.getElementById(id);
 
 // ✅ ADD THIS HERE (ONCE)
