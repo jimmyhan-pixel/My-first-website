@@ -12,6 +12,23 @@ const supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
 );
+// =============================
+// LOG RESUME DOWNLOAD
+// =============================
+async function logResumeDownload({ organization, title, name = null, email = null }) {
+  try {
+    await supabaseClient.from("resume_downloads").insert([{
+      organization,
+      title,
+      name,
+      email,
+      downloaded_at: new Date().toISOString(),
+    }]);
+  } catch (err) {
+    console.warn("[resume] logResumeDownload failed:", err);
+    // Don't block the download if logging fails
+  }
+}
 
 async function trackVisit() {
   try {
@@ -108,6 +125,9 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     }
 
     message.textContent = "Thank you! Preparing your download...";
+    // ✅ NEW: record org/title + time in Supabase
+    logResumeDownload({ organization: org, title });
+
 
     // Try to prompt the native save-file picker first (preserving user gesture),
     // then fetch and write the file. If picker is not available or fails, fall back
