@@ -380,41 +380,46 @@ uploadImagesBtn?.addEventListener("click", async () => {
 });
 
 publishBtn?.addEventListener("click", async () => {
-  // ✅ prevent publishing if nothing is pending
-  if (!pendingResumeUrl && (!pendingImageUrls || !pendingImageUrls.length)) {
-    publishStatus.textContent = "Nothing to publish. Upload resume/images first.";
-    return;
-  }
-
   publishStatus.textContent = "Publishing…";
 
   try {
+    const hasResume = !!pendingResumeUrl;
+    const hasCarousel = Array.isArray(pendingImageUrls) && pendingImageUrls.length === 8;
+
+    if (!hasResume && !hasCarousel) {
+      publishStatus.textContent = "Nothing to publish.";
+      return;
+    }
+
     await publishAssets({
-      resumeUrl: pendingResumeUrl,
-      imageUrls: pendingImageUrls,
+      resumeUrl: pendingResumeUrl || undefined,
+      imageUrls: hasCarousel ? pendingImageUrls : undefined,
     });
 
-    // ✅ proof (read back from DB)
-    const liveResumeUrl = await readBackResumeUrl();
-    const liveCarouselUrls = await readBackCarouselUrls();
+    // Proof-read back from DB
+    const { data } = await supabaseClient
+      .from("site_assets")
+      .select("key,value")
+      .in("key", ["resume_url", "carousel_images"]);
 
-    const resumeOk = !!liveResumeUrl;
-    const carouselOk = Array.isArray(liveCarouselUrls) && liveCarouselUrls.length > 0;
+    const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+
+    const resumeOK = !!map.resume_url?.url;
+    const carouselOK = Array.isArray(map.carousel_images?.urls) && map.carousel_images.urls.length === 8;
 
     publishStatus.textContent =
-      `Published! Resume: ${resumeOk ? "OK" : "EMPTY"} | Carousel: ${carouselOk ? ("OK (" + liveCarouselUrls.length + ")") : "EMPTY"}`; 
+      `Published! Resume: ${resumeOK ? "OK" : "EMPTY"} | Carousel: ${carouselOK ? "OK" : "EMPTY"}`;
 
-    // Clear pending so you don't accidentally re-publish old values
+    // Clear pending state ONLY after successful publish
     pendingResumeUrl = null;
     pendingImageUrls = null;
 
-    // Optionally refresh dashboard
-    await refreshAll();
   } catch (e) {
     console.warn(e);
     publishStatus.textContent = "Publish failed. Check console.";
   }
 });
+
 
 // =============================
 // Boot
