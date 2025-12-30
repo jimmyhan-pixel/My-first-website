@@ -12,6 +12,7 @@ const supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
 );
+
 // =============================
 // LOG RESUME DOWNLOAD
 // =============================
@@ -42,6 +43,39 @@ async function trackVisit() {
 trackVisit();
 
 // =============================
+// LOAD PUBLISHED ASSETS
+// =============================
+let LIVE_RESUME_URL = ""; // will be filled from site_assets
+
+async function loadPublishedAssets() {
+  try {
+    const { data, error } = await supabaseClient
+      .from("site_assets")
+      .select("key,value")
+      .in("key", ["resume_url", "carousel_images"]);
+
+    if (error) throw error;
+
+    const map = new Map((data || []).map((r) => [r.key, r.value]));
+
+    const resume = map.get("resume_url");
+    LIVE_RESUME_URL = resume?.url || "";
+
+    // ✅ Update the link in DOM to the live resume (so manual download uses the new one too)
+    const resumeLinkEl = document.getElementById("resumeLink");
+    if (LIVE_RESUME_URL && resumeLinkEl) {
+      resumeLinkEl.setAttribute("href", LIVE_RESUME_URL);
+    }
+
+    console.log("[assets] LIVE_RESUME_URL:", LIVE_RESUME_URL ? "loaded" : "empty");
+  } catch (e) {
+    console.warn("[assets] loadPublishedAssets failed:", e);
+  }
+}
+loadPublishedAssets();
+
+
+// =============================
 // ADMIN LOGIN (compact slide-out)
 // =============================
 (function initAdminLogin() {
@@ -53,31 +87,30 @@ trackVisit();
   const msgEl = document.getElementById("adminLoginMsg");
 
   if (!boxEl || !panelEl || !emailEl || !passEl || !btnEl) return;
-// Always clear autofill on load/refresh (Chrome may fill after DOM paints)
-emailEl.value = "";
-passEl.value = "";
 
-setTimeout(() => {
+  // Always clear autofill on load/refresh (Chrome may fill after DOM paints)
   emailEl.value = "";
   passEl.value = "";
-}, 0);
 
-setTimeout(() => {
-  emailEl.value = "";
-  passEl.value = "";
-}, 200);
+  setTimeout(() => {
+    emailEl.value = "";
+    passEl.value = "";
+  }, 0);
 
+  setTimeout(() => {
+    emailEl.value = "";
+    passEl.value = "";
+  }, 200);
 
   function setOpen(open) {
     boxEl.classList.toggle("is-open", open);
     btnEl.setAttribute("aria-expanded", String(open));
     panelEl.setAttribute("aria-hidden", String(!open));
     if (open) {
-      // focus email for faster login
       setTimeout(() => emailEl.focus(), 0);
     } else {
       if (msgEl) msgEl.textContent = "";
-      emailEl.value = emailEl.value.trim(); // keep tidy
+      emailEl.value = emailEl.value.trim();
     }
   }
 
@@ -85,9 +118,6 @@ setTimeout(() => {
     return boxEl.classList.contains("is-open");
   }
 
-  // Button behavior:
-  // - If panel is closed: open it
-  // - If panel is open: attempt login (if fields filled), otherwise close it
   btnEl.addEventListener("click", async () => {
     if (!isOpen()) {
       setOpen(true);
@@ -97,7 +127,6 @@ setTimeout(() => {
     const email = emailEl.value.trim();
     const password = passEl.value;
 
-    // If open but empty, treat as “close”
     if (!email && !password) {
       setOpen(false);
       return;
@@ -134,14 +163,11 @@ setTimeout(() => {
       if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
     }
   });
-  
 
-  // Optional nicety: press Esc to close panel (does not affect site design)
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && isOpen()) setOpen(false);
   });
 
-  // Optional nicety: click outside closes the panel (NOT the carousel)
   document.addEventListener("click", (e) => {
     if (!isOpen()) return;
     if (boxEl.contains(e.target)) return;
@@ -162,6 +188,7 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+
 // =============================
 // EmailJS CONFIG ✅ 必须完整
 // =============================
@@ -235,18 +262,19 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     }
 
     message.textContent = "Thank you! Preparing your download...";
-    // ✅ NEW: record org/title + time in Supabase
     logResumeDownload({ organization: org, title });
 
-
-    // Try to prompt the native save-file picker first (preserving user gesture),
-    // then fetch and write the file. If picker is not available or fails, fall back
-    // to a standard blob download. This ordering prevents the picker being blocked
-    // on deployed sites where async work breaks the user gesture.
     (async () => {
+      // ✅ always use one URL for all branches
+      const oldHref = link.getAttribute("href");
+      // If LIVE_RESUME_URL not ready yet, try to load it once more
+      if (!LIVE_RESUME_URL) {
+        await loadPublishedAssets();
+      }
+      const urlToDownload = LIVE_RESUME_URL || oldHref;
+
       try {
         if (window.showSaveFilePicker) {
-          // Prompt picker immediately while still in the user gesture
           let handle;
           try {
             handle = await window.showSaveFilePicker({
@@ -254,26 +282,21 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
               types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }]
             });
           } catch (pickerErr) {
-            // user cancelled the picker or it's blocked — DO NOT proceed to download
             console.warn('Save picker cancelled or blocked:', pickerErr);
             message.textContent = 'Save cancelled.';
             form.reset();
-            return; // exit without fetching or downloading
+            return;
           }
 
-          // Now fetch the resume (only if a handle was obtained)
-          const res = await fetch(link.getAttribute('href'));
+          const res = await fetch(urlToDownload);
           if (!res.ok) throw new Error('Failed to fetch resume');
 
           if (handle) {
             try {
               const writable = await handle.createWritable();
-              // write response body as stream if available for efficiency
+
               if (res.body && writable.write) {
-                // If WritableStream supports single-write of ReadableStream, pipe
-                // Otherwise fall back to arrayBuffer
                 try {
-                  // Some environments allow piping directly
                   const reader = res.body.getReader();
                   while (true) {
                     const { done, value } = await reader.read();
@@ -282,7 +305,6 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
                   }
                   await writable.close();
                 } catch (streamErr) {
-                  // Fallback: read full blob and write once
                   const blob = await res.blob();
                   await writable.write(blob);
                   await writable.close();
@@ -292,30 +314,35 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
                 await writable.write(blob);
                 await writable.close();
               }
+
               message.textContent = 'Saved to chosen location. Thank you!';
             } catch (fsErr) {
               console.error('Error writing to file handle:', fsErr);
-              // If writing fails, DO NOT auto-download. Offer a manual link instead.
-              message.innerHTML = 'Save failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+              message.innerHTML =
+                'Save failed — you can <a href="' + urlToDownload + '" download>click here</a> to download manually.';
               link.style.display = 'inline-block';
+              link.setAttribute("href", urlToDownload);
             }
           } else {
-            // No handle selected (shouldn't happen because we return on cancel),
-            // but avoid auto-downloading — show a manual link instead.
-            message.innerHTML = 'No file chosen — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
+            message.innerHTML =
+              'No file chosen — you can <a href="' + urlToDownload + '" download>click here</a> to download manually.';
             link.style.display = 'inline-block';
+            link.setAttribute("href", urlToDownload);
           }
         } else {
-          // Browser doesn't support showSaveFilePicker — do not auto-download.
-          // Provide a manual download link so the user explicitly chooses to download.
-          message.innerHTML = 'Your browser cannot prompt a save dialog. <a href="' + link.getAttribute('href') + '" download>Click here to download</a>.';
+          // ✅ no picker: manual link should point to the new resume URL too
+          message.innerHTML =
+            'Your browser cannot prompt a save dialog. <a href="' + urlToDownload + '" download>Click here to download</a>.';
           link.style.display = 'inline-block';
+          link.setAttribute("href", urlToDownload);
         }
       } catch (err) {
         console.error(err);
-        // fallback to the original anchor if fetch fails
-        message.innerHTML = 'Download failed — you can <a href="' + link.getAttribute('href') + '" download>click here</a> to try manually.';
+        // ✅ fallback link also uses urlToDownload (new if available)
+        message.innerHTML =
+          'Download failed — you can <a href="' + urlToDownload + '" download>click here</a> to try manually.';
         link.style.display = 'inline-block';
+        link.setAttribute("href", urlToDownload);
       } finally {
         form.reset();
       }
@@ -348,7 +375,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     status.className = "chat-status " + (isOnline ? "online" : "offline");
   }
 
-  setStatus(true); // 当前为 Email 模式，默认 online
+  setStatus(true);
 
   function addMessage(text, from = "user") {
     const msg = document.createElement("div");
@@ -380,9 +407,6 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     closeChat();
   });
 
-  // =============================
-  // FORM SUBMIT → EMAILJS
-  // =============================
   let ownerName = "Jimmy";
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -396,7 +420,7 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     sending = true;
 
     if (typeof emailjs === "undefined") {
-      addMessage("❌ Email service not available. "+ ownerName, "owner");
+      addMessage("❌ Email service not available. " + ownerName, "owner");
       sending = false;
       return;
     }
@@ -420,21 +444,21 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
     emailjs
       .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
       .then(() => {
-        addMessage("✅ Message sent. I’ll send email to you soon! "+ ownerName, "owner");
+        addMessage("✅ Message sent. I’ll send email to you soon! " + ownerName, "owner");
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
-        addMessage("❌ Failed to send message. Please try again later. "+ ownerName, "owner");
+        addMessage("❌ Failed to send message. Please try again later. " + ownerName, "owner");
       })
       .finally(() => {
         sending = false;
       });
   });
 })();
+
 // =============================
 // IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
-// ring globals (available to trigger/layout/hover logic)
 const ringPortal = document.getElementById("carousel-portal");
 const ringContainer = document.getElementById("carousel-container");
 const ring = document.querySelector(".carousel-ring");
@@ -475,6 +499,7 @@ function setCarouselOpenState(nextOpen) {
     console.log('[carousel] trigger clicked — isOpen=', isOpen);
   });
 })();
+
 // =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
 // =============================
@@ -484,28 +509,24 @@ function setCarouselOpenState(nextOpen) {
   if (!container || !images.length) return;
 
   const count = images.length;
-  const scale = 1.5; // enlarge by 50%
-  const gap = 20; // px between images
+  const scale = 1.5;
+  const gap = 20;
 
-  // base sizes to match CSS fallback
   const baseW = 220;
   const baseH = 140;
 
   const imgW = Math.round(baseW * scale);
   const imgH = Math.round(baseH * scale);
 
-  // set actual sizes (override CSS fallback)
   images.forEach((img) => {
     img.style.width = imgW + 'px';
     img.style.height = imgH + 'px';
   });
 
-  // compute minimal radius so images don't touch but aren't too far
   const circumferenceNeeded = count * (imgW + gap);
   let radius = Math.max(circumferenceNeeded / (2 * Math.PI), imgW * 0.9);
   radius = Math.round(radius + Math.max(16, imgW * 0.04));
 
-  // size the container to comfortably fit the ring
   const containerSize = Math.round(radius * 2 + imgH * 1.2);
   container.style.width = containerSize + 'px';
   container.style.height = containerSize + 'px';
@@ -521,26 +542,22 @@ function setCarouselOpenState(nextOpen) {
     img.style.transform = `translate(-50%, -50%) rotateY(${angle}deg) translateZ(${radius}px) scale(var(--carousel-scale))`;
   });
 })();
+
 // =============================
 // IMAGE RING – STEP 2: OPEN + AUTO ROTATE
 // =============================
-
-// Pause on hover + resume only when open
 if (ringContainer) {
   ringContainer.addEventListener("mouseenter", () => {
-    stopAutoRotate(); // 保留你原本“悬停暂停”的设计
+    stopAutoRotate();
   });
 
   ringContainer.addEventListener("mouseleave", () => {
-    // 离开时如果是打开状态，继续自动旋转
     if (isOpen) {
       clearActiveImage();
       startAutoRotate();
     }
   });
 
-  // ✅ 不再允许点击 container 关闭 carousel
-  // 仅阻止冒泡即可（避免影响其他点击逻辑）
   ringContainer.addEventListener("click", (event) => {
     event.stopPropagation();
   });
@@ -555,7 +572,7 @@ function startAutoRotate() {
   autoRotateTimer = setInterval(() => {
     rotationY -= rotationSpeed;
     if (ring) ring.style.transform = `rotateY(${rotationY}rad)`;
-  }, 16); // ~60fps
+  }, 16);
 }
 
 function stopAutoRotate() {
@@ -564,7 +581,6 @@ function stopAutoRotate() {
   autoRotateTimer = null;
 }
 
-// ✅ 清除激活图片：恢复所有图片到正常大小
 function clearActiveImage() {
   if (!ring) return;
   ring.querySelectorAll("img").forEach((img) => {
@@ -573,7 +589,6 @@ function clearActiveImage() {
   });
 }
 
-// ✅ 聚焦图片：停止旋转 + 放大 40%
 function focusImage(img) {
   if (!img || !ring) return;
   const angle = Number(img.dataset.angle || 0);
@@ -582,7 +597,7 @@ function focusImage(img) {
   clearActiveImage();
 
   img.classList.add("is-active");
-  img.style.setProperty("--carousel-scale", "1.4"); // ✅ 40% bigger
+  img.style.setProperty("--carousel-scale", "1.4");
 
   const targetRotation = -angle * (Math.PI / 180);
   rotationY = targetRotation;
@@ -597,23 +612,19 @@ function focusImage(img) {
 
 // =============================
 // ✅ FIX #2: 鼠标滑动触发方向翻转（速度不变）
-// 逻辑：当“滑动方向” ≠ “当前旋转方向”时才翻转
 // =============================
 let lastMouseX = null;
-const MOUSE_DIR_THRESHOLD = 2; // px 防抖
+const MOUSE_DIR_THRESHOLD = 2;
 
-// 说明：你原来注释写 rotationSpeed=0.004 是“left rotation”
-// 所以这里约定：rotationSpeed > 0 代表“向左”，<0 代表“向右”
 function getRotateDirLR() {
-  return rotationSpeed > 0 ? -1 : 1; // -1=left, 1=right
+  return rotationSpeed > 0 ? -1 : 1;
 }
 
 function flipRotateDirKeepSpeed() {
-  rotationSpeed = -rotationSpeed; // ✅ 只翻转正负号，速度大小不变
+  rotationSpeed = -rotationSpeed;
 }
 
 if (ring) {
-  // ✅ 点击图片只做一件事：focus（不关闭 carousel）
   ring.addEventListener("click", (event) => {
     const target = event.target;
     if (target instanceof HTMLImageElement) {
@@ -621,7 +632,6 @@ if (ring) {
     }
   });
 
-  // ✅ 在图片上滑动：如果方向不一致就翻转方向
   ring.querySelectorAll("img").forEach((img) => {
     img.addEventListener("mouseenter", () => {
       lastMouseX = null;
@@ -630,8 +640,6 @@ if (ring) {
     img.addEventListener("mousemove", (event) => {
       if (!isOpen) return;
 
-      // 你原本 hover 会 stopAutoRotate()
-      // 为了让“滑动改变方向”可见：只要你开始滑动，就恢复旋转
       if (!autoRotateTimer) startAutoRotate();
 
       if (lastMouseX === null) {
@@ -642,10 +650,9 @@ if (ring) {
       const deltaX = event.clientX - lastMouseX;
       if (Math.abs(deltaX) < MOUSE_DIR_THRESHOLD) return;
 
-      const mouseDir = deltaX > 0 ? 1 : -1; // 1=right, -1=left
-      const rotDir = getRotateDirLR();       // 1=right, -1=left
+      const mouseDir = deltaX > 0 ? 1 : -1;
+      const rotDir = getRotateDirLR();
 
-      // ✅ 只有不一致才翻转（你要求的触发逻辑）
       if (mouseDir !== rotDir) {
         flipRotateDirKeepSpeed();
       }
@@ -657,11 +664,5 @@ if (ring) {
 
 // =============================
 // ✅ FIX #1: 删除“点击任意地方关闭”
-// 关闭 carousel 只能由按钮 ringButton 的 toggle 逻辑完成
 // =============================
-
-// ❌ 删除你原来的 document click 关闭逻辑（不要再加回来）
-// document.addEventListener("click", ... setCarouselOpenState(false));
-
-
-
+// (No document click close logic)
