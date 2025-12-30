@@ -73,6 +73,33 @@
     </div>
 
     <div class="admin-card">
+  <h2>Publish Assets</h2>
+  <p class="admin-muted">Upload new resume or carousel images, then publish to make them live.</p>
+
+  <div class="admin-grid">
+    <div>
+      <h3 style="margin-top:0;">Resume (PDF)</h3>
+      <input id="resumeFile" type="file" accept="application/pdf" />
+      <button id="uploadResumeBtn" class="admin-btn" style="margin-top:10px;">Upload Resume</button>
+      <p id="resumeStatus" class="admin-muted"></p>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0;">Carousel Images</h3>
+      <input id="imageFiles" type="file" accept="image/*" multiple />
+      <button id="uploadImagesBtn" class="admin-btn" style="margin-top:10px;">Upload Images</button>
+      <p id="imagesStatus" class="admin-muted"></p>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0;" />
+
+  <button id="publishBtn" class="admin-btn secondary">Publish to Live Site</button>
+  <p id="publishStatus" class="admin-muted"></p>
+</div>
+
+
+    <div class="admin-card">
       <h2>Recent Resume Downloads</h2>
       <p class="admin-muted">Shows the most recent 50 records.</p>
       <p id="downloadsError" class="admin-error"></p>

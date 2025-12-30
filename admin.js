@@ -22,6 +22,16 @@ const downloadsTableBody = document.getElementById("downloadsTableBody");
 
 const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+const resumeFile = document.getElementById("resumeFile");
+const uploadResumeBtn = document.getElementById("uploadResumeBtn");
+const resumeStatus = document.getElementById("resumeStatus");
+
+const imageFiles = document.getElementById("imageFiles");
+const uploadImagesBtn = document.getElementById("uploadImagesBtn");
+const imagesStatus = document.getElementById("imagesStatus");
+
+const publishBtn = document.getElementById("publishBtn");
+const publishStatus = document.getElementById("publishStatus");
 
 // =============================
 // Auth guard
@@ -130,6 +140,71 @@ async function refreshAll() {
   await loadOverview();
   await loadRecentDownloads();
 }
+let pendingResumeUrl = null;
+let pendingImageUrls = null;
+
+// Upload resume to private-assets and return a signed URL (valid for 1 day)
+async function uploadResume(file) {
+  const path = `resume/resume_${Date.now()}.pdf`;
+
+  const { error: upErr } = await supabaseClient.storage
+    .from("private-assets")
+    .upload(path, file, { upsert: true, contentType: "application/pdf" });
+
+  if (upErr) throw upErr;
+
+  // Create a signed URL for downloads (valid 24 hours)
+  const { data, error: signErr } = await supabaseClient.storage
+    .from("private-assets")
+    .createSignedUrl(path, 60 * 60 * 24);
+
+  if (signErr) throw signErr;
+
+  return data.signedUrl;
+}
+
+// Upload images to public-assets and return public URLs
+async function uploadImages(files) {
+  const urls = [];
+
+  for (const file of files) {
+    const safeName = file.name.replace(/\s+/g, "_");
+    const path = `carousel/${Date.now()}_${safeName}`;
+
+    const { error: upErr } = await supabaseClient.storage
+      .from("public-assets")
+      .upload(path, file, { upsert: true, contentType: file.type });
+
+    if (upErr) throw upErr;
+
+    const { data } = supabaseClient.storage
+      .from("public-assets")
+      .getPublicUrl(path);
+
+    urls.push(data.publicUrl);
+  }
+
+  return urls;
+}
+
+// Publish to DB so the public site can read current assets
+async function publishAssets({ resumeUrl, imageUrls }) {
+  if (resumeUrl) {
+    const { error } = await supabaseClient
+      .from("site_assets")
+      .update({ value: { url: resumeUrl } })
+      .eq("key", "resume_url");
+    if (error) throw error;
+  }
+
+  if (imageUrls && imageUrls.length) {
+    const { error } = await supabaseClient
+      .from("site_assets")
+      .update({ value: { urls: imageUrls } })
+      .eq("key", "carousel_images");
+    if (error) throw error;
+  }
+}
 
 // =============================
 // Events
@@ -140,6 +215,56 @@ logoutBtn?.addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
   window.location.href = "index.html";
 });
+        
+uploadResumeBtn?.addEventListener("click", async () => {
+  if (!resumeFile?.files?.[0]) {
+    resumeStatus.textContent = "Please choose a PDF first.";
+    return;
+  }
+  resumeStatus.textContent = "Uploading resume…";
+  try {
+    pendingResumeUrl = await uploadResume(resumeFile.files[0]);
+    resumeStatus.textContent = "Resume uploaded. Ready to publish.";
+  } catch (e) {
+    console.warn(e);
+    resumeStatus.textContent = "Upload failed. Check console.";
+  }
+});
+
+uploadImagesBtn?.addEventListener("click", async () => {
+  const files = imageFiles?.files ? Array.from(imageFiles.files) : [];
+  if (!files.length) {
+    imagesStatus.textContent = "Please choose images first.";
+    return;
+  }
+  imagesStatus.textContent = "Uploading images…";
+  try {
+    pendingImageUrls = await uploadImages(files);
+    imagesStatus.textContent = `Images uploaded (${pendingImageUrls.length}). Ready to publish.`;
+  } catch (e) {
+    console.warn(e);
+    imagesStatus.textContent = "Upload failed. Check console.";
+  }
+});
+
+publishBtn?.addEventListener("click", async () => {
+  publishStatus.textContent = "Publishing…";
+  try {
+    await publishAssets({
+      resumeUrl: pendingResumeUrl,
+      imageUrls: pendingImageUrls,
+    });
+    publishStatus.textContent = "Published! Your public site will use the new assets.";
+    // Optionally refresh dashboard
+    await refreshAll();
+  } catch (e) {
+    console.warn(e);
+    publishStatus.textContent = "Publish failed. Check console.";
+  }
+});
+
+
+
 
 // =============================
 // Boot
