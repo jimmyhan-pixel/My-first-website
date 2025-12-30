@@ -69,6 +69,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89
 let supabaseClient = null;
 let LIVE_RESUME_URL = "";
 let LIVE_CAROUSEL_URLS = [];
+let __PENDING_CAROUSEL_URLS = null;
 
 async function ensureSupabaseClient() {
   try {
@@ -315,17 +316,22 @@ function applyCarouselImages(urls) {
 
   // Prefer updating existing <img> tags (preserves layout/CSS)
   if (imgs.length === urls.length) {
-    imgs.forEach((img, i) => {
-      img.src = urls[i];
-    });
+    imgs.forEach((img, i) => { img.src = urls[i]; });
   } else {
-    // Rebuild only if counts differ
     ringEl.innerHTML = urls.map((u) => `<img src="${u}" alt="">`).join("");
   }
 
-  // Re-layout and re-bind hover/click handlers
-  layoutCarousel();
-  bindCarouselImageEvents();
+  // Some deployments load assets before carousel functions are defined.
+  // Queue the URLs and retry after the rest of the script has loaded.
+  __PENDING_CAROUSEL_URLS = urls;
+
+  // If the helpers already exist, apply immediately.
+  if (typeof layoutCarousel === "function") {
+    layoutCarousel();
+  }
+  if (typeof bindCarouselImageEvents === "function") {
+    bindCarouselImageEvents();
+  }
 }
 
 async function loadPublishedAssets() {

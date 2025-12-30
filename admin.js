@@ -41,6 +41,55 @@ const publishBtn = document.getElementById("publishBtn");
 const publishStatus = document.getElementById("publishStatus");
 
 // Slot UI (your admin.html may already contain these; we bind to whatever exists)
+
+// Ensure the 8 carousel slot thumbnails exist in the DOM.
+// Some deployments may ship an older admin.html without the slot markup.
+// This creates the slots dynamically so the "Option B" single-slot replace workflow works.
+function ensureSlotGrid() {
+  const existing = Array.from(document.querySelectorAll(".carousel-slot"));
+  if (existing.length >= 8) return;
+
+  const SLOT_COUNT = 8;
+
+  // Try to find a reasonable mount point: place the grid above the "Selected slot" label.
+  const labelEl =
+    document.getElementById("selectedSlotLabel") ||
+    document.querySelector("[data-selected-slot]") ||
+    document.getElementById("selectedSlot");
+
+  const mountParent = labelEl?.parentElement || document.querySelector("main") || document.body;
+
+  // If a grid container already exists, reuse it; otherwise create one.
+  let grid = document.getElementById("carouselSlotsAuto");
+  if (!grid) {
+    grid = document.createElement("div");
+    grid.id = "carouselSlotsAuto";
+    grid.className = "carousel-slots";
+    // Insert grid BEFORE the selected slot label, so it appears in the correct place.
+    if (labelEl && labelEl.parentElement) {
+      labelEl.parentElement.insertBefore(grid, labelEl);
+    } else {
+      mountParent.appendChild(grid);
+    }
+  }
+
+  // Build 8 empty slot buttons.
+  grid.innerHTML = "";
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "carousel-slot";
+    btn.dataset.slotIndex = String(i);
+
+    btn.innerHTML = `
+      <div class="slot-badge">${i + 1}</div>
+      <img class="slot-img" alt="" />
+      <div class="slot-empty">Empty</div>
+    `;
+    grid.appendChild(btn);
+  }
+}
+
 const slotEls = () => Array.from(document.querySelectorAll(".carousel-slot"));
 const selectedSlotLabel = document.getElementById("selectedSlotLabel")
   || document.getElementById("selectedSlot")
@@ -445,6 +494,9 @@ publishBtn?.addEventListener("click", async () => {
 
   await refreshAll();
 
+  // Make sure the 8 carousel slots exist (older admin.html deployments may not include them)
+  ensureSlotGrid();
+
   // Load published carousel URLs so the slots show what's currently live
   try {
     await readPublishedAssets();
@@ -453,5 +505,8 @@ publishBtn?.addEventListener("click", async () => {
   }
 
   // Bind slot click selection (works whether your HTML pre-renders slots or not)
+  ensureSlotGrid();
   bindSlotClicks();
+  // Paint once more after binding (ensures thumbnails appear immediately)
+  paintSlots();
 })();
