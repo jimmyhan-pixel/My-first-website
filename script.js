@@ -53,6 +53,20 @@ trackVisit();
   const msgEl = document.getElementById("adminLoginMsg");
 
   if (!boxEl || !panelEl || !emailEl || !passEl || !btnEl) return;
+// Always clear autofill on load/refresh (Chrome may fill after DOM paints)
+emailEl.value = "";
+passEl.value = "";
+
+setTimeout(() => {
+  emailEl.value = "";
+  passEl.value = "";
+}, 0);
+
+setTimeout(() => {
+  emailEl.value = "";
+  passEl.value = "";
+}, 200);
+
 
   function setOpen(open) {
     boxEl.classList.toggle("is-open", open);
@@ -120,6 +134,7 @@ trackVisit();
       if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
     }
   });
+  
 
   // Optional nicety: press Esc to close panel (does not affect site design)
   document.addEventListener("keydown", (e) => {
