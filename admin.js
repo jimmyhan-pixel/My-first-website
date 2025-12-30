@@ -33,6 +33,10 @@ const imagesStatus = document.getElementById("imagesStatus");
 const publishBtn = document.getElementById("publishBtn");
 const publishStatus = document.getElementById("publishStatus");
 
+const carouselPreviewGrid = document.getElementById("carouselPreviewGrid");
+const carouselSelectedIndexEl = document.getElementById("carouselSelectedIndex");
+
+
 // =============================
 // Auth guard
 // =============================
@@ -143,6 +147,8 @@ async function refreshAll() {
 // =============================
 let pendingResumeUrl = null;
 let pendingImageUrls = null;
+let currentCarouselUrls = [];
+let selectedCarouselIndex = null; // 0-7
 
 // =============================
 // Upload resume to PUBLIC bucket (Option A)
@@ -246,6 +252,63 @@ async function readBackCarouselUrls() {
   return Array.isArray(urls) ? urls : [];
 }
 
+async function loadCarouselUrlsFromDB() {
+  const { data, error } = await supabaseClient
+    .from("site_assets")
+    .select("value")
+    .eq("key", "carousel_images")
+    .single();
+
+  if (error) throw error;
+
+  const urls = data?.value?.urls;
+  currentCarouselUrls = Array.isArray(urls) ? urls : [];
+  return currentCarouselUrls;
+}
+
+function renderCarouselPreview(urls) {
+  if (!carouselPreviewGrid) return;
+
+  // ensure exactly 8 slots (fallback placeholders)
+  const slots = Array.from({ length: 8 }, (_, i) => urls[i] || "");
+
+  carouselPreviewGrid.innerHTML = slots
+    .map((u, i) => {
+      const safeSrc = u || "images/img" + (i + 1) + ".png"; // fallback to your original local images
+      return `
+        <div class="carousel-preview-item" data-index="${i}">
+          <span class="carousel-preview-badge">${i + 1}</span>
+          <img src="${safeSrc}" alt="carousel ${i + 1}">
+        </div>
+      `;
+    })
+    .join("");
+
+  // bind clicks
+  carouselPreviewGrid.querySelectorAll(".carousel-preview-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const idx = Number(el.dataset.index);
+      selectedCarouselIndex = idx;
+
+      // UI selected state
+      carouselPreviewGrid.querySelectorAll(".carousel-preview-item").forEach((x) => x.classList.remove("selected"));
+      el.classList.add("selected");
+
+      if (carouselSelectedIndexEl) carouselSelectedIndexEl.textContent = String(idx + 1);
+    });
+  });
+
+  // keep selection highlight if already selected
+  if (selectedCarouselIndex != null) {
+    const sel = carouselPreviewGrid.querySelector(`.carousel-preview-item[data-index="${selectedCarouselIndex}"]`);
+    sel?.classList.add("selected");
+    if (carouselSelectedIndexEl) carouselSelectedIndexEl.textContent = String(selectedCarouselIndex + 1);
+  } else {
+    if (carouselSelectedIndexEl) carouselSelectedIndexEl.textContent = "None";
+  }
+}
+
+
 // =============================
 // Events
 // =============================
@@ -256,23 +319,47 @@ logoutBtn?.addEventListener("click", async () => {
   window.location.href = "index.html";
 });
 
-uploadResumeBtn?.addEventListener("click", async () => {
-  const file = resumeFile?.files?.[0];
-  if (!file) {
-    resumeStatus.textContent = "Please choose a PDF first.";
+uploadImagesBtn?.addEventListener("click", async () => {
+  const files = imageFiles?.files ? Array.from(imageFiles.files) : [];
+  if (!files.length) {
+    imagesStatus.textContent = "Please choose images first.";
     return;
   }
 
-  resumeStatus.textContent = "Uploading resume…";
+  imagesStatus.textContent = "Uploading images…";
+
   try {
-    pendingResumeUrl = await uploadResume(file);
-    resumeStatus.textContent = "Resume uploaded. Ready to publish.";
-    console.log("[admin] pendingResumeUrl:", pendingResumeUrl);
+    // Make sure we have the current 8 URLs from DB for replacement mode
+    if (!currentCarouselUrls.length) {
+      await loadCarouselUrlsFromDB();
+    }
+
+    // Case 1: user selects ONE file and has selected a slot -> replace that slot
+    if (files.length === 1 && selectedCarouselIndex != null) {
+      const [newUrl] = await uploadImages(files); // reuses your existing uploader
+      const next = Array.from({ length: 8 }, (_, i) => currentCarouselUrls[i] || "");
+
+      next[selectedCarouselIndex] = newUrl;
+
+      pendingImageUrls = next;
+      imagesStatus.textContent = `Uploaded 1 image. Ready to publish (replaces slot ${selectedCarouselIndex + 1}).`;
+
+      // update preview immediately (so you see what will publish)
+      currentCarouselUrls = next;
+      renderCarouselPreview(currentCarouselUrls);
+      return;
+    }
+
+    // Case 2: multi-upload (or no slot selected) -> treat as “replace all” behavior
+    pendingImageUrls = await uploadImages(files);
+    imagesStatus.textContent = `Images uploaded (${pendingImageUrls.length}). Ready to publish.`;
+
   } catch (e) {
     console.warn(e);
-    resumeStatus.textContent = "Upload failed. Check console.";
+    imagesStatus.textContent = "Upload failed. Check console.";
   }
 });
+
 
 uploadImagesBtn?.addEventListener("click", async () => {
   const files = imageFiles?.files ? Array.from(imageFiles.files) : [];
@@ -336,4 +423,12 @@ publishBtn?.addEventListener("click", async () => {
   const ok = await requireLogin();
   if (!ok) return;
   await refreshAll();
+try {
+  await loadCarouselUrlsFromDB();
+  renderCarouselPreview(currentCarouselUrls);
+} catch (e) {
+  console.warn("[admin] failed to load carousel preview:", e);
+}
+
+
 })();
