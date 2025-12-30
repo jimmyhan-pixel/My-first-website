@@ -46,7 +46,6 @@ async function requireLogin() {
 
   const session = data?.session;
   if (!session) {
-    // Not logged in → go back to home
     window.location.href = "index.html";
     return false;
   }
@@ -62,14 +61,12 @@ async function loadOverview() {
   overviewError.textContent = "";
 
   try {
-    // Count visits
     const { count: visitTotal, error: vErr } = await supabaseClient
       .from("site_visits")
       .select("id", { count: "exact", head: true });
 
     if (vErr) throw vErr;
 
-    // Count downloads
     const { count: dlTotal, error: dErr } = await supabaseClient
       .from("resume_downloads")
       .select("id", { count: "exact", head: true });
@@ -140,11 +137,18 @@ async function refreshAll() {
   await loadOverview();
   await loadRecentDownloads();
 }
+
+// =============================
+// Pending (draft) assets before publish
+// =============================
 let pendingResumeUrl = null;
 let pendingImageUrls = null;
 
-// Upload resume to private-assets and return a signed URL (valid for 1 day)
+// =============================
+// Upload resume to PUBLIC bucket (Option A)
+// =============================
 async function uploadResume(file) {
+  // Always overwrite this path
   const path = "resume/current.pdf";
 
   const { error: upErr } = await supabaseClient.storage
@@ -161,12 +165,13 @@ async function uploadResume(file) {
     .from("public-assets")
     .getPublicUrl(path);
 
-  // cache-busting version
+  // Cache-busting param forces browsers to fetch newest file
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-
+// =============================
 // Upload images to public-assets and return public URLs
+// =============================
 async function uploadImages(files) {
   const urls = [];
 
@@ -190,8 +195,11 @@ async function uploadImages(files) {
   return urls;
 }
 
+// =============================
 // Publish to DB so the public site can read current assets
+// =============================
 async function publishAssets({ resumeUrl, imageUrls }) {
+  // Update resume_url row
   if (resumeUrl) {
     const { error } = await supabaseClient
       .from("site_assets")
@@ -200,6 +208,7 @@ async function publishAssets({ resumeUrl, imageUrls }) {
     if (error) throw error;
   }
 
+  // Update carousel_images row
   if (imageUrls && imageUrls.length) {
     const { error } = await supabaseClient
       .from("site_assets")
@@ -207,6 +216,20 @@ async function publishAssets({ resumeUrl, imageUrls }) {
       .eq("key", "carousel_images");
     if (error) throw error;
   }
+}
+
+// =============================
+// Proof helper: read back resume_url from DB
+// =============================
+async function readBackResumeUrl() {
+  const { data, error } = await supabaseClient
+    .from("site_assets")
+    .select("value")
+    .eq("key", "resume_url")
+    .single();
+
+  if (error) throw error;
+  return data?.value?.url || "";
 }
 
 // =============================
@@ -220,14 +243,17 @@ logoutBtn?.addEventListener("click", async () => {
 });
 
 uploadResumeBtn?.addEventListener("click", async () => {
-  if (!resumeFile?.files?.[0]) {
+  const file = resumeFile?.files?.[0];
+  if (!file) {
     resumeStatus.textContent = "Please choose a PDF first.";
     return;
   }
+
   resumeStatus.textContent = "Uploading resume…";
   try {
-    pendingResumeUrl = await uploadResume(resumeFile.files[0]);
+    pendingResumeUrl = await uploadResume(file);
     resumeStatus.textContent = "Resume uploaded. Ready to publish.";
+    console.log("[admin] pendingResumeUrl:", pendingResumeUrl);
   } catch (e) {
     console.warn(e);
     resumeStatus.textContent = "Upload failed. Check console.";
@@ -240,10 +266,12 @@ uploadImagesBtn?.addEventListener("click", async () => {
     imagesStatus.textContent = "Please choose images first.";
     return;
   }
+
   imagesStatus.textContent = "Uploading images…";
   try {
     pendingImageUrls = await uploadImages(files);
     imagesStatus.textContent = `Images uploaded (${pendingImageUrls.length}). Ready to publish.`;
+    console.log("[admin] pendingImageUrls:", pendingImageUrls);
   } catch (e) {
     console.warn(e);
     imagesStatus.textContent = "Upload failed. Check console.";
@@ -251,13 +279,32 @@ uploadImagesBtn?.addEventListener("click", async () => {
 });
 
 publishBtn?.addEventListener("click", async () => {
+  // ✅ prevent publishing if nothing is pending
+  if (!pendingResumeUrl && (!pendingImageUrls || !pendingImageUrls.length)) {
+    publishStatus.textContent = "Nothing to publish. Upload resume/images first.";
+    return;
+  }
+
   publishStatus.textContent = "Publishing…";
+
   try {
     await publishAssets({
       resumeUrl: pendingResumeUrl,
       imageUrls: pendingImageUrls,
     });
-    publishStatus.textContent = "Published! Your public site will use the new assets.";
+
+    // ✅ proof (read back from DB)
+    const liveResumeUrl = await readBackResumeUrl();
+
+    publishStatus.textContent =
+      liveResumeUrl
+        ? "Published! Live resume updated (OK)."
+        : "Published, but resume_url is EMPTY (check DB row).";
+
+    // Clear pending so you don't accidentally re-publish old values
+    pendingResumeUrl = null;
+    pendingImageUrls = null;
+
     // Optionally refresh dashboard
     await refreshAll();
   } catch (e) {
@@ -265,9 +312,6 @@ publishBtn?.addEventListener("click", async () => {
     publishStatus.textContent = "Publish failed. Check console.";
   }
 });
-
-
-
 
 // =============================
 // Boot
