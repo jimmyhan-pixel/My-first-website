@@ -189,7 +189,7 @@ async function uploadImages(files) {
       .from("public-assets")
       .getPublicUrl(path);
 
-    urls.push(data.publicUrl);
+    urls.push(`${data.publicUrl}?v=${Date.now()}`);
   }
 
   return urls;
@@ -230,6 +230,20 @@ async function readBackResumeUrl() {
 
   if (error) throw error;
   return data?.value?.url || "";
+}
+
+
+// Proof helper: read back carousel_images from DB
+async function readBackCarouselUrls() {
+  const { data, error } = await supabaseClient
+    .from("site_assets")
+    .select("value")
+    .eq("key", "carousel_images")
+    .single();
+
+  if (error) throw error;
+  const urls = data?.value?.urls;
+  return Array.isArray(urls) ? urls : [];
 }
 
 // =============================
@@ -295,11 +309,13 @@ publishBtn?.addEventListener("click", async () => {
 
     // ✅ proof (read back from DB)
     const liveResumeUrl = await readBackResumeUrl();
+    const liveCarouselUrls = await readBackCarouselUrls();
+
+    const resumeOk = !!liveResumeUrl;
+    const carouselOk = Array.isArray(liveCarouselUrls) && liveCarouselUrls.length > 0;
 
     publishStatus.textContent =
-      liveResumeUrl
-        ? "Published! Live resume updated (OK)."
-        : "Published, but resume_url is EMPTY (check DB row).";
+      `Published! Resume: ${resumeOk ? "OK" : "EMPTY"} | Carousel: ${carouselOk ? ("OK (" + liveCarouselUrls.length + ")") : "EMPTY"}`; 
 
     // Clear pending so you don't accidentally re-publish old values
     pendingResumeUrl = null;
