@@ -205,7 +205,6 @@ async function uploadImages(files) {
 // Publish to DB so the public site can read current assets
 // =============================
 async function publishAssets({ resumeUrl, imageUrls }) {
-  // Update resume_url row
   if (resumeUrl) {
     const { error } = await supabaseClient
       .from("site_assets")
@@ -214,15 +213,21 @@ async function publishAssets({ resumeUrl, imageUrls }) {
     if (error) throw error;
   }
 
-  // Update carousel_images row
-  if (imageUrls && imageUrls.length) {
+  // 🚨 GUARANTEE 8 images before writing carousel
+  if (Array.isArray(imageUrls)) {
+    if (imageUrls.length !== 8) {
+      throw new Error("Carousel publish requires exactly 8 images.");
+    }
+
     const { error } = await supabaseClient
       .from("site_assets")
       .update({ value: { urls: imageUrls } })
       .eq("key", "carousel_images");
+
     if (error) throw error;
   }
 }
+
 
 // =============================
 // Proof helper: read back resume_url from DB
@@ -384,12 +389,44 @@ publishBtn?.addEventListener("click", async () => {
 
   try {
     const hasResume = !!pendingResumeUrl;
-    const hasCarousel = Array.isArray(pendingImageUrls) && pendingImageUrls.length === 8;
+    const hasCarousel =
+      Array.isArray(pendingImageUrls) && pendingImageUrls.length === 8;
 
     if (!hasResume && !hasCarousel) {
       publishStatus.textContent = "Nothing to publish.";
       return;
     }
+
+    await publishAssets({
+      resumeUrl: pendingResumeUrl || undefined,
+      imageUrls: hasCarousel ? pendingImageUrls : undefined,
+    });
+
+    // Read back proof
+    const { data } = await supabaseClient
+      .from("site_assets")
+      .select("key,value")
+      .in("key", ["resume_url", "carousel_images"]);
+
+    const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+
+    const resumeOK = !!map.resume_url?.url;
+    const carouselOK =
+      Array.isArray(map.carousel_images?.urls) &&
+      map.carousel_images.urls.length === 8;
+
+    publishStatus.textContent =
+      `Published! Resume: ${resumeOK ? "OK" : "EMPTY"} | Carousel: ${carouselOK ? "OK" : "EMPTY"}`;
+
+    pendingResumeUrl = null;
+    pendingImageUrls = null;
+
+  } catch (e) {
+    console.warn(e);
+    publishStatus.textContent = e.message || "Publish failed.";
+  }
+});
+
 
     await publishAssets({
       resumeUrl: pendingResumeUrl || undefined,
