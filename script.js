@@ -16,20 +16,34 @@ const supabaseClient = supabase.createClient(
 // =============================
 // LOG RESUME DOWNLOAD
 // =============================
-async function logResumeDownload({ organization, title, name = null, email = null }) {
+async function loadPublishedAssets() {
   try {
-    await supabaseClient.from("resume_downloads").insert([{
-      organization,
-      title,
-      name,
-      email,
-      downloaded_at: new Date().toISOString(),
-    }]);
-  } catch (err) {
-    console.warn("[resume] logResumeDownload failed:", err);
-    // Don't block the download if logging fails
+    const { data, error } = await supabaseClient
+      .from("site_assets")
+      .select("key,value")
+      .in("key", ["resume_url", "carousel_images"]);
+
+    if (error) throw error;
+
+    const map = new Map((data || []).map((r) => [r.key, r.value]));
+
+    const resume = map.get("resume_url");
+    LIVE_RESUME_URL = resume?.url || "";
+
+    const resumeLinkEl = document.getElementById("resumeLink");
+    if (resumeLinkEl) {
+      if (LIVE_RESUME_URL) {
+        resumeLinkEl.href = LIVE_RESUME_URL;
+      }
+      console.log("[assets] resumeLink.href =", resumeLinkEl.href);
+    }
+
+    console.log("[assets] LIVE_RESUME_URL:", LIVE_RESUME_URL ? "loaded" : "empty");
+  } catch (e) {
+    console.warn("[assets] loadPublishedAssets failed:", e);
   }
 }
+loadPublishedAssets();
 
 async function trackVisit() {
   try {
