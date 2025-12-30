@@ -145,23 +145,26 @@ let pendingImageUrls = null;
 
 // Upload resume to private-assets and return a signed URL (valid for 1 day)
 async function uploadResume(file) {
-  const path = `resume/resume_${Date.now()}.pdf`;
+  const path = "resume/current.pdf";
 
   const { error: upErr } = await supabaseClient.storage
-    .from("private-assets")
-    .upload(path, file, { upsert: true, contentType: "application/pdf" });
+    .from("public-assets")
+    .upload(path, file, {
+      upsert: true,
+      contentType: "application/pdf",
+      cacheControl: "0",
+    });
 
   if (upErr) throw upErr;
 
-  // Create a signed URL for downloads (valid 24 hours)
-  const { data, error: signErr } = await supabaseClient.storage
-    .from("private-assets")
-    .createSignedUrl(path, 60 * 60 * 24);
+  const { data } = supabaseClient.storage
+    .from("public-assets")
+    .getPublicUrl(path);
 
-  if (signErr) throw signErr;
-
-  return data.signedUrl;
+  // cache-busting version
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
+
 
 // Upload images to public-assets and return public URLs
 async function uploadImages(files) {
@@ -215,7 +218,7 @@ logoutBtn?.addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
   window.location.href = "index.html";
 });
-        
+
 uploadResumeBtn?.addEventListener("click", async () => {
   if (!resumeFile?.files?.[0]) {
     resumeStatus.textContent = "Please choose a PDF first.";
