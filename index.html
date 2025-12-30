@@ -13,13 +13,22 @@
   <link rel="shortcut icon" href="images/img1.png" type="image/png">
 </head>
 <body>
-<!-- Admin Login (top-right) -->
+<!-- Admin Login (compact) -->
 <div id="adminLoginBox" class="admin-login">
-  <input id="adminEmail" type="email" placeholder="Admin email" autocomplete="username" />
-  <input id="adminPassword" type="password" placeholder="Password" autocomplete="current-password" />
-  <button id="adminLoginBtn" type="button">Login</button>
-  <span id="adminLoginMsg" class="admin-login-msg"></span>
+  <div id="adminPanel" class="admin-panel" aria-hidden="true">
+    <input id="adminEmail" type="email" placeholder="Admin email" autocomplete="username" />
+    <input id="adminPassword" type="password" placeholder="Password" autocomplete="current-password" />
+    <span id="adminLoginMsg" class="admin-login-msg"></span>
+  </div>
+
+  <button id="adminLoginBtn" type="button" class="admin-login-btn" aria-expanded="false">
+    Login
+  </button>
 </div>
+
+
+
+
 <header>
   <div class="header-content">
     <h1>--</h1>
@@ -27,6 +36,8 @@
     <p class="subtitle">Aspiring AI Professional</p>
     <p class="greeting" id="greeting"></p>
   </div>
+
+
 </header>
 
 

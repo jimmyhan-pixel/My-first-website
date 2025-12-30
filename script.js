@@ -42,27 +42,55 @@ async function trackVisit() {
 trackVisit();
 
 // =============================
-// ADMIN LOGIN (index.html)
+// ADMIN LOGIN (compact slide-out)
 // =============================
 (function initAdminLogin() {
+  const boxEl = document.getElementById("adminLoginBox");
+  const panelEl = document.getElementById("adminPanel");
   const emailEl = document.getElementById("adminEmail");
   const passEl = document.getElementById("adminPassword");
   const btnEl = document.getElementById("adminLoginBtn");
   const msgEl = document.getElementById("adminLoginMsg");
 
-  if (!emailEl || !passEl || !btnEl) {
-    console.warn("[admin] login elements not found");
-    return;
+  if (!boxEl || !panelEl || !emailEl || !passEl || !btnEl) return;
+
+  function setOpen(open) {
+    boxEl.classList.toggle("is-open", open);
+    btnEl.setAttribute("aria-expanded", String(open));
+    panelEl.setAttribute("aria-hidden", String(!open));
+    if (open) {
+      // focus email for faster login
+      setTimeout(() => emailEl.focus(), 0);
+    } else {
+      if (msgEl) msgEl.textContent = "";
+      emailEl.value = emailEl.value.trim(); // keep tidy
+    }
   }
 
+  function isOpen() {
+    return boxEl.classList.contains("is-open");
+  }
+
+  // Button behavior:
+  // - If panel is closed: open it
+  // - If panel is open: attempt login (if fields filled), otherwise close it
   btnEl.addEventListener("click", async () => {
+    if (!isOpen()) {
+      setOpen(true);
+      return;
+    }
+
     const email = emailEl.value.trim();
     const password = passEl.value;
 
-    if (msgEl) msgEl.textContent = "";
+    // If open but empty, treat as “close”
+    if (!email && !password) {
+      setOpen(false);
+      return;
+    }
 
     if (!email || !password) {
-      if (msgEl) msgEl.textContent = "Please enter email + password.";
+      if (msgEl) msgEl.textContent = "Enter email + password.";
       return;
     }
 
@@ -81,7 +109,7 @@ trackVisit();
       }
 
       if (!data?.session) {
-        if (msgEl) msgEl.textContent = "No session returned.";
+        if (msgEl) msgEl.textContent = "Login failed (no session).";
         return;
       }
 
@@ -92,7 +120,20 @@ trackVisit();
       if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
     }
   });
+
+  // Optional nicety: press Esc to close panel (does not affect site design)
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) setOpen(false);
+  });
+
+  // Optional nicety: click outside closes the panel (NOT the carousel)
+  document.addEventListener("click", (e) => {
+    if (!isOpen()) return;
+    if (boxEl.contains(e.target)) return;
+    setOpen(false);
+  });
 })();
+
 
 
 const $ = (id) => document.getElementById(id);
