@@ -185,6 +185,125 @@ trackVisit();
 loadPublishedAssets();
 
 // =============================
+// ADMIN LOGIN (compact slide-out) — deployed-safe init
+// =============================
+(function initAdminLoginRobust() {
+  async function init() {
+    const boxEl = document.getElementById("adminLoginBox");
+    const panelEl = document.getElementById("adminPanel");
+    const emailEl = document.getElementById("adminEmail");
+    const passEl = document.getElementById("adminPassword");
+    const btnEl = document.getElementById("adminLoginBtn");
+    const msgEl = document.getElementById("adminLoginMsg");
+
+    // If the login UI is not on this page, just stop (no errors)
+    if (!boxEl || !panelEl || !emailEl || !passEl || !btnEl) return false;
+
+    // Prevent double-binding if init runs twice
+    if (btnEl.dataset.bound === "1") return true;
+    btnEl.dataset.bound = "1";
+
+    // Clear autofill
+    emailEl.value = "";
+    passEl.value = "";
+    setTimeout(() => { emailEl.value = ""; passEl.value = ""; }, 0);
+    setTimeout(() => { emailEl.value = ""; passEl.value = ""; }, 200);
+
+    function setOpen(open) {
+      boxEl.classList.toggle("is-open", open);
+      btnEl.setAttribute("aria-expanded", String(open));
+      panelEl.setAttribute("aria-hidden", String(!open));
+      if (open) setTimeout(() => emailEl.focus(), 0);
+      if (!open && msgEl) msgEl.textContent = "";
+    }
+
+    function isOpen() {
+      return boxEl.classList.contains("is-open");
+    }
+
+    // Click button:
+    // - if closed: open panel
+    // - if open: attempt login (if filled), otherwise close
+    btnEl.addEventListener("click", async (e) => {
+      e.preventDefault();
+
+      if (!isOpen()) {
+        setOpen(true);
+        return;
+      }
+
+      const email = emailEl.value.trim();
+      const password = passEl.value;
+
+      if (!email && !password) {
+        setOpen(false);
+        return;
+      }
+
+      if (!email || !password) {
+        if (msgEl) msgEl.textContent = "Enter email + password.";
+        return;
+      }
+
+      try {
+        if (msgEl) msgEl.textContent = "Signing in...";
+
+        const client = await ensureSupabaseClient();
+        if (!client) {
+          if (msgEl) msgEl.textContent = "Supabase not ready. Refresh and try again.";
+          return;
+        }
+
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          console.warn("[admin] login failed:", error);
+          if (msgEl) msgEl.textContent = `Login failed: ${error.message}`;
+          return;
+        }
+        if (!data?.session) {
+          if (msgEl) msgEl.textContent = "Login failed (no session).";
+          return;
+        }
+
+        if (msgEl) msgEl.textContent = "Success! Redirecting...";
+        window.location.href = "admin.html";
+      } catch (err) {
+        console.error("[admin] unexpected error:", err);
+        if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
+      }
+    });
+
+    // Esc closes panel
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) setOpen(false);
+    });
+
+    // Click outside closes the panel (not carousel)
+    document.addEventListener("click", (e) => {
+      if (!isOpen()) return;
+      if (boxEl.contains(e.target)) return;
+      setOpen(false);
+    });
+
+    return true;
+  }
+
+  // DOM-ready + retry (for deployed timing differences)
+  const run = async () => {
+    const ok = await init();
+    if (!ok) setTimeout(init, 250);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run);
+  } else {
+    run();
+  }
+})();
+
+
+// =============================
 // RESUME DOWNLOAD LOGIC
 // =============================
 (function initResumeDownload() {
