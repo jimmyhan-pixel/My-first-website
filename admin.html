@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* Small admin-only styles (keeps your existing design intact) */
+    .admin-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .admin-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 18px;
+    }
+    .admin-header h1 { font-size: 1.6rem; margin: 0; }
+    .admin-actions { display: flex; gap: 10px; align-items: center; }
+    .admin-btn {
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #2c3e50;
+      color: #fff;
+    }
+    .admin-btn.secondary { background: #3498db; }
+    .admin-muted { color: #666; font-size: 0.95rem; }
+    .admin-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+      margin-bottom: 16px;
+    }
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 720px) { .admin-grid { grid-template-columns: 1fr; } }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+    th { color: #2c3e50; font-weight: 600; }
+    .admin-error { color: #b42318; }
+  </style>
+</head>
+
+<body>
+  <div class="admin-wrap">
+
+    <div class="admin-header">
+      <h1>Admin Dashboard</h1>
+      <div class="admin-actions">
+        <button id="refreshBtn" class="admin-btn secondary">Refresh</button>
+        <button id="logoutBtn" class="admin-btn">Logout</button>
+      </div>
+    </div>
+
+    <p id="statusMsg" class="admin-muted">Checking login…</p>
+
+    <div class="admin-card">
+      <h2>Overview</h2>
+      <div class="admin-grid">
+        <div>
+          <p class="admin-muted">Total Visits</p>
+          <h3 id="visitsCount">—</h3>
+        </div>
+        <div>
+          <p class="admin-muted">Total Resume Downloads</p>
+          <h3 id="downloadsCount">—</h3>
+        </div>
+      </div>
+      <p id="overviewError" class="admin-error"></p>
+    </div>
+
+    <div class="admin-card">
+  <h2>Publish Assets</h2>
+  <p class="admin-muted">Upload new resume or carousel images, then publish to make them live.</p>
+
+  <div class="admin-grid">
+    <div>
+      <h3 style="margin-top:0;">Resume (PDF)</h3>
+      <input id="resumeFile" type="file" accept="application/pdf" />
+      <button id="uploadResumeBtn" class="admin-btn" style="margin-top:10px;">Upload Resume</button>
+      <p id="resumeStatus" class="admin-muted"></p>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0;">Carousel Images</h3>
+      <input id="imageFiles" type="file" accept="image/*" multiple />
+      <button id="uploadImagesBtn" class="admin-btn" style="margin-top:10px;">Upload Images</button>
+      <p id="imagesStatus" class="admin-muted"></p>
+    </div>
+  </div>
+<!-- Carousel Preview (click one to select slot) -->
+<div class="admin-section">
+  <div class="admin-label">Carousel images (click one slot to replace)</div>
+
+  <div id="carouselPreviewGrid" class="carousel-preview-grid"></div>
+
+  <div class="admin-muted" id="carouselSelectedHint">
+    Selected slot: <strong id="carouselSelectedIndex">None</strong>
+  </div>
+</div>
+
+
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0;" />
+
+  <button id="publishBtn" class="admin-btn secondary">Publish to Live Site</button>
+  <p id="publishStatus" class="admin-muted"></p>
+</div>
+
+
+    <div class="admin-card">
+      <h2>Recent Resume Downloads</h2>
+      <p class="admin-muted">Shows the most recent 50 records.</p>
+      <p id="downloadsError" class="admin-error"></p>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Organization</th>
+              <th>Title</th>
+              <th>Name</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody id="downloadsTableBody">
+            <tr><td colspan="5" class="admin-muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

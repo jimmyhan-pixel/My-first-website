@@ -13,6 +13,42 @@
   <link rel="shortcut icon" href="images/img1.png" type="image/png">
 </head>
 <body>
+<!-- Admin Login (compact) -->
+<div id="adminLoginBox" class="admin-login">
+  <!-- Autofill trap (Chrome often fills the first visible email/pass it finds) -->
+  <input type="text" name="fake-user" autocomplete="username" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" />
+  <input type="password" name="fake-pass" autocomplete="current-password" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" />
+
+  <div id="adminPanel" class="admin-panel" aria-hidden="true">
+    <input
+      id="adminEmail"
+      type="email"
+      name="admin_email_no_autofill"
+      placeholder="Admin email"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      value=""
+    />
+    <input
+      id="adminPassword"
+      type="password"
+      name="admin_password_no_autofill"
+      placeholder="Password"
+      autocomplete="new-password"
+      value=""
+    />
+    <span id="adminLoginMsg" class="admin-login-msg"></span>
+  </div>
+
+  <button id="adminLoginBtn" type="button" class="admin-login-btn" aria-expanded="false">
+    Login
+  </button>
+</div>
+
+
+
+
 
 <header>
   <div class="header-content">
@@ -21,7 +57,11 @@
     <p class="subtitle">Aspiring AI Professional</p>
     <p class="greeting" id="greeting"></p>
   </div>
+
+
 </header>
+
+
 
 <main>
   <section id="about">
@@ -138,7 +178,8 @@ Hi 👋 Leave your message and/or upload afile below and I’ll reply soon.
 </div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="script.js" defer></script>
 
-<script defer src="script.js?v=1.5"></script>
 </body>
 </html>
