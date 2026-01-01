@@ -327,11 +327,45 @@ function setCarouselOpenState(nextOpen) {
 // =============================
 // LOAD CAROUSEL IMAGES FROM DATABASE
 // =============================
-// This function runs when the page loads and updates the carousel images
-// to show the latest images that were uploaded through the admin dashboard.
-// It connects to Supabase, reads the current image URLs from the database,
-// and replaces the hardcoded image sources with the database URLs.
-(async function loadCarouselImagesFromDB() {
+// This function waits for both the DOM and Supabase library to be ready,
+// then loads the latest carousel images from the database and updates the page.
+// This ensures we don't try to connect to Supabase before the library has loaded.
+
+// Helper function: wait for Supabase library to be available
+function waitForSupabase() {
+  return new Promise((resolve) => {
+    // If Supabase is already loaded, resolve immediately
+    if (typeof supabase !== "undefined") {
+      resolve();
+      return;
+    }
+    
+    // Otherwise, check every 100ms until it's available (max 5 seconds)
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds total
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      
+      if (typeof supabase !== "undefined") {
+        clearInterval(checkInterval);
+        resolve();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.warn('[carousel] Supabase library did not load in time');
+        resolve(); // Resolve anyway to prevent hanging
+      }
+    }, 100);
+  });
+}
+
+// Main function: load carousel images from database
+async function loadCarouselImagesFromDB() {
+  console.log('[carousel] Starting image load from database...');
+  
+  // Wait for Supabase library to be available
+  await waitForSupabase();
+  
   const container = document.getElementById("carousel-container");
   const images = container?.querySelectorAll(".carousel-ring img");
   
@@ -340,11 +374,13 @@ function setCarouselOpenState(nextOpen) {
     return;
   }
 
+  console.log(`[carousel] Found ${images.length} images to potentially update`);
+
   try {
     // Initialize Supabase client if not already done
-    // This creates a connection to your Supabase database so we can read data from it
     let client = window.supabaseClient;
     if (!client && typeof supabase !== "undefined") {
+      console.log('[carousel] Creating Supabase client...');
       client = supabase.createClient(
         "https://wumakgzighvtvtvprnri.supabase.co",
         "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89"
@@ -357,9 +393,9 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
-    // Fetch carousel URLs from the site_assets table in the database
-    // We're looking for the row where key = "carousel_images"
-    // This row contains an array of 8 image URLs (one for each carousel slot)
+    console.log('[carousel] Fetching URLs from database...');
+
+    // Fetch carousel URLs from the site_assets table
     const { data, error } = await client
       .from("site_assets")
       .select("value")
@@ -371,8 +407,7 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
-    // Extract the URLs array from the database response
-    // The database stores this as: { "urls": ["image1.png", "image2.png", ...] }
+    // Extract the URLs array
     const urls = data?.value?.urls;
     
     if (!Array.isArray(urls) || urls.length === 0) {
@@ -380,25 +415,32 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
-    // Update each image element's src attribute with the corresponding URL from the database
-    // This loop goes through slots 1-8 and replaces each image source
-    // If you uploaded a new image to slot 6 via admin, this is where that change takes effect
+    console.log('[carousel] Received URLs from database:', urls);
+
+    // Update each image src with the database URL
     images.forEach((img, index) => {
       if (urls[index]) {
+        const oldSrc = img.src;
         img.src = urls[index];
-        console.log(`[carousel] Updated slot ${index + 1} to: ${urls[index]}`);
+        console.log(`[carousel] Slot ${index + 1}: ${oldSrc} → ${urls[index]}`);
       }
     });
 
-    console.log('[carousel] Successfully loaded images from database');
+    console.log('[carousel] ✅ Successfully loaded all images from database');
 
   } catch (err) {
     console.warn('[carousel] Error loading carousel images:', err);
-    // If anything goes wrong, we fail silently and the page will just show
-    // the default hardcoded images from the HTML. This prevents the carousel
-    // from breaking completely if there's a database connection issue.
+    // Fail silently and use default images
   }
-})();
+}
+
+// Run the function when DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadCarouselImagesFromDB);
+} else {
+  // DOM is already loaded, run immediately
+  loadCarouselImagesFromDB();
+}
 
 // =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
