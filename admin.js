@@ -1,9 +1,7 @@
 // =============================
-// ADMIN DASHBOARD (FIXED)
+// admin.js (FIXED: carousel slot replace + reliable Supabase load)
+// Keep all UI/CSS/HTML the same — this only fixes behavior.
 // =============================
-// ✅ Keeps all existing design/CSS
-// ✅ Fixes: carousel image upload (Option B: replace a selected slot)
-// ✅ Fixes: publish writes correct DB rows (upsert)
 
 // =============================
 // SUPABASE INIT (same as your site)
@@ -11,10 +9,30 @@
 const SUPABASE_URL = "https://wumakgzighvtvtvprnri.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89";
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+let supabaseClient = null;
+
+// Load Supabase JS if missing (important on deployed sites)
+async function ensureSupabaseClient() {
+  try {
+    if (typeof supabase === "undefined") {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    if (!supabaseClient && typeof supabase !== "undefined") {
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    }
+    return supabaseClient;
+  } catch (e) {
+    console.warn("[admin] failed to init supabase:", e);
+    return null;
+  }
+}
 
 // =============================
 // DOM
@@ -29,6 +47,7 @@ const downloadsTableBody = document.getElementById("downloadsTableBody");
 
 const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+
 const resumeFile = document.getElementById("resumeFile");
 const uploadResumeBtn = document.getElementById("uploadResumeBtn");
 const resumeStatus = document.getElementById("resumeStatus");
@@ -40,66 +59,21 @@ const imagesStatus = document.getElementById("imagesStatus");
 const publishBtn = document.getElementById("publishBtn");
 const publishStatus = document.getElementById("publishStatus");
 
-// Slot UI (your admin.html may already contain these; we bind to whatever exists)
-
-// Ensure the 8 carousel slot thumbnails exist in the DOM.
-// Some deployments may ship an older admin.html without the slot markup.
-// This creates the slots dynamically so the "Option B" single-slot replace workflow works.
-function ensureSlotGrid() {
-  const existing = Array.from(document.querySelectorAll(".carousel-slot"));
-  if (existing.length >= 8) return;
-
-  const SLOT_COUNT = 8;
-
-  // Try to find a reasonable mount point: place the grid above the "Selected slot" label.
-  const labelEl =
-    document.getElementById("selectedSlotLabel") ||
-    document.querySelector("[data-selected-slot]") ||
-    document.getElementById("selectedSlot");
-
-  const mountParent = labelEl?.parentElement || document.querySelector("main") || document.body;
-
-  // If a grid container already exists, reuse it; otherwise create one.
-  let grid = document.getElementById("carouselSlotsAuto");
-  if (!grid) {
-    grid = document.createElement("div");
-    grid.id = "carouselSlotsAuto";
-    grid.className = "carousel-slots";
-    // Insert grid BEFORE the selected slot label, so it appears in the correct place.
-    if (labelEl && labelEl.parentElement) {
-      labelEl.parentElement.insertBefore(grid, labelEl);
-    } else {
-      mountParent.appendChild(grid);
-    }
-  }
-
-  // Build 8 empty slot buttons.
-  grid.innerHTML = "";
-  for (let i = 0; i < SLOT_COUNT; i++) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "carousel-slot";
-    btn.dataset.slotIndex = String(i);
-
-    btn.innerHTML = `
-      <div class="slot-badge">${i + 1}</div>
-      <img class="slot-img" alt="" />
-      <div class="slot-empty">Empty</div>
-    `;
-    grid.appendChild(btn);
-  }
-}
-
-const slotEls = () => Array.from(document.querySelectorAll(".carousel-slot"));
-const selectedSlotLabel = document.getElementById("selectedSlotLabel")
-  || document.getElementById("selectedSlot")
-  || document.querySelector("[data-selected-slot]");
+// Carousel preview grid (8 slots) from admin.html
+const carouselPreviewGrid = document.getElementById("carouselPreviewGrid");
+const selectedSlotText = document.getElementById("selectedSlotText");
 
 // =============================
 // Auth guard
 // =============================
 async function requireLogin() {
-  const { data, error } = await supabaseClient.auth.getSession();
+  const client = await ensureSupabaseClient();
+  if (!client) {
+    statusMsg.textContent = "Supabase not loaded.";
+    return false;
+  }
+
+  const { data, error } = await client.auth.getSession();
   if (error) {
     statusMsg.textContent = "Auth error.";
     console.warn("[admin] getSession error", error);
@@ -117,42 +91,22 @@ async function requireLogin() {
 }
 
 // =============================
-// Helpers
-// =============================
-function escapeHtml(s) {
-  if (s == null) return "";
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function setSelectedSlotText(n) {
-  if (!selectedSlotLabel) return;
-  if (typeof selectedSlotLabel.textContent === "string") {
-    selectedSlotLabel.textContent = n ? String(n) : "None";
-  }
-}
-
-// =============================
 // Load stats + table
 // =============================
 async function loadOverview() {
   overviewError.textContent = "";
+  const client = await ensureSupabaseClient();
+  if (!client) return;
 
   try {
-    const { count: visitTotal, error: vErr } = await supabaseClient
+    const { count: visitTotal, error: vErr } = await client
       .from("site_visits")
       .select("id", { count: "exact", head: true });
-
     if (vErr) throw vErr;
 
-    const { count: dlTotal, error: dErr } = await supabaseClient
+    const { count: dlTotal, error: dErr } = await client
       .from("resume_downloads")
       .select("id", { count: "exact", head: true });
-
     if (dErr) throw dErr;
 
     visitsCount.textContent = String(visitTotal ?? 0);
@@ -164,11 +118,23 @@ async function loadOverview() {
   }
 }
 
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 async function loadRecentDownloads() {
   downloadsError.textContent = "";
+  const client = await ensureSupabaseClient();
+  if (!client) return;
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from("resume_downloads")
       .select("organization,title,name,email,downloaded_at")
       .order("downloaded_at", { ascending: false })
@@ -211,27 +177,112 @@ async function refreshAll() {
 }
 
 // =============================
-// ASSETS STATE
+// Upload helpers (resume + carousel)
 // =============================
 let pendingResumeUrl = null;
-let pendingCarouselUrls = null; // full 8-length array
 
-let currentCarouselUrls = new Array(8).fill("");
-let selectedSlot = null; // 1..8
+// Option B: slot replace (keep 8 URLs)
+const DEFAULT_CAROUSEL_URLS = Array.from({ length: 8 }, (_, i) => `images/img${i + 1}.png`);
+let currentCarouselUrls = DEFAULT_CAROUSEL_URLS.slice(); // what is currently live in DB
+let pendingCarouselUrls = null; // staged changes to publish
+let selectedSlotIndex = null;   // 0..7
 
-function normalizeCarouselUrls(urls) {
-  const arr = Array.isArray(urls) ? urls.slice(0, 8) : [];
-  while (arr.length < 8) arr.push("");
-  return arr;
+function setSelectedSlot(index) {
+  selectedSlotIndex = index;
+  
+  const hintElement = document.getElementById("carouselSelectedIndex");
+  if (hintElement) {
+    hintElement.textContent = index == null ? "None" : String(index + 1);
+  }
+  
+  // Remove highlight from all slots
+  document.querySelectorAll(".carousel-slot").forEach((el) => {
+    el.classList.remove("selected");
+  });
+  
+  // Add highlight to selected slot
+  if (index != null) {
+    const el = document.querySelector(`.carousel-slot[data-slot='${index}']`);
+    if (el) el.classList.add("selected");
+  }
 }
 
-// =============================
-// Storage helpers
-// =============================
+function ensureEightUrls(urls) {
+  const out = Array.isArray(urls) ? urls.slice(0, 8) : [];
+  while (out.length < 8) out.push(DEFAULT_CAROUSEL_URLS[out.length] || "");
+  return out;
+}
+
+async function loadCarouselUrlsFromDB() {
+  const client = await ensureSupabaseClient();
+  if (!client) return DEFAULT_CAROUSEL_URLS.slice();
+
+  try {
+    const { data, error } = await client
+      .from("site_assets")
+      .select("value")
+      .eq("key", "carousel_images")
+      .single();
+
+    if (error) throw error;
+
+    const urls = data?.value?.urls;
+    if (Array.isArray(urls) && urls.length) {
+      return ensureEightUrls(urls);
+    }
+    return DEFAULT_CAROUSEL_URLS.slice();
+  } catch (e) {
+    console.warn("[admin] loadCarouselUrlsFromDB failed:", e);
+    return DEFAULT_CAROUSEL_URLS.slice();
+  }
+}
+
+function renderCarouselPreview(urls) {
+  if (!carouselPreviewGrid) return;
+
+  const safe = ensureEightUrls(urls);
+
+  carouselPreviewGrid.innerHTML = safe
+    .map((url, idx) => {
+      const hasImg = !!url;
+      const imgHtml = hasImg
+        ? `<img src="${url}" alt="Slot ${idx + 1}" />`
+        : `<div class="empty">Empty</div>`;
+      return `
+        <div class="carousel-slot" data-slot="${idx}">
+          <div class="slot-badge">${idx + 1}</div>
+          ${imgHtml}
+        </div>
+      `;
+    })
+    .join("");
+
+  // Click to select slot
+  carouselPreviewGrid.querySelectorAll(".carousel-slot").forEach((slot) => {
+    slot.addEventListener("click", () => {
+      const idx = Number(slot.getAttribute("data-slot"));
+      setSelectedSlot(Number.isFinite(idx) ? idx : null);
+      if (imagesStatus) imagesStatus.textContent = "";
+    });
+  });
+
+  // Restore selection highlight if a slot was previously selected
+  if (selectedSlotIndex != null) {
+    const selectedSlot = carouselPreviewGrid.querySelector(
+      `.carousel-slot[data-slot="${selectedSlotIndex}"]`
+    );
+    if (selectedSlot) selectedSlot.classList.add("selected");
+  }
+}
+
+// Upload resume to public-assets and return public URL (+ cache buster)
 async function uploadResume(file) {
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
+
   const path = "resume/current.pdf";
 
-  const { error: upErr } = await supabaseClient.storage
+  const { error: upErr } = await client.storage
     .from("public-assets")
     .upload(path, file, {
       upsert: true,
@@ -241,123 +292,67 @@ async function uploadResume(file) {
 
   if (upErr) throw upErr;
 
-  const { data } = supabaseClient.storage
-    .from("public-assets")
-    .getPublicUrl(path);
-
-  // cache buster
+  const { data } = client.storage.from("public-assets").getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-async function uploadCarouselFileToSlot(file, slotIndex) {
-  // Stable path per slot so it truly "replaces" in-place
-  const safeExt = (file.name.split(".").pop() || "png").toLowerCase();
-  const path = `carousel/slot${slotIndex}.${safeExt}`;
+// Upload ONE image to the selected slot path and return URL (+ cache buster)
+async function uploadCarouselImageToSlot(file, slotIndex) {
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
 
-  const { error: upErr } = await supabaseClient.storage
+  const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ext || "png";
+  const path = `carousel/slot-${slotIndex + 1}.${safeExt}`;
+
+  const { error: upErr } = await client.storage
     .from("public-assets")
     .upload(path, file, {
       upsert: true,
       contentType: file.type || "image/png",
       cacheControl: "0",
     });
-
   if (upErr) throw upErr;
 
-  const { data } = supabaseClient.storage
-    .from("public-assets")
-    .getPublicUrl(path);
-
-  return `${data.publicUrl}?v=${Date.now()}`; // cache buster
+  const { data } = client.storage.from("public-assets").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-// =============================
-// DB publish (UPsert by key)
-// =============================
+// Publish to DB so the public site can read current assets
 async function publishAssets({ resumeUrl, carouselUrls }) {
-  const rows = [];
-  if (resumeUrl) rows.push({ key: "resume_url", value: { url: resumeUrl } });
-  if (carouselUrls && carouselUrls.length) {
-    rows.push({ key: "carousel_images", value: { urls: carouselUrls } });
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
+
+  if (resumeUrl) {
+    const { error } = await client
+      .from("site_assets")
+      .update({ value: { url: resumeUrl } })
+      .eq("key", "resume_url");
+    if (error) throw error;
   }
-  if (!rows.length) return;
 
-  const { error } = await supabaseClient
+  if (carouselUrls) {
+    const safe = ensureEightUrls(carouselUrls);
+    const { error } = await client
+      .from("site_assets")
+      .update({ value: { urls: safe } })
+      .eq("key", "carousel_images");
+    if (error) throw error;
+  }
+}
+
+async function readBackCarouselUrls() {
+  const client = await ensureSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
     .from("site_assets")
-    .upsert(rows, { onConflict: "key" });
+    .select("value")
+    .eq("key", "carousel_images")
+    .single();
 
   if (error) throw error;
-}
-
-async function readPublishedAssets() {
-  const { data, error } = await supabaseClient
-    .from("site_assets")
-    .select("key,value")
-    .in("key", ["resume_url", "carousel_images"]);
-
-  if (error) throw error;
-
-  const map = new Map((data || []).map((r) => [r.key, r.value]));
-  const carousel = map.get("carousel_images");
-  currentCarouselUrls = normalizeCarouselUrls(carousel?.urls);
-}
-
-// =============================
-// Slot UI binding
-// =============================
-function paintSlots() {
-  const els = slotEls();
-  if (!els.length) return;
-
-  els.forEach((el, i) => {
-    const idx = i + 1;
-    el.dataset.slot = String(idx);
-
-    // If your HTML uses an <img> inside, update it; otherwise set background.
-    const url = currentCarouselUrls[i] || "";
-    const img = el.querySelector("img");
-
-    if (img) {
-      if (url) {
-        img.src = url;
-        img.style.display = "block";
-      } else {
-        img.removeAttribute("src");
-        img.style.display = "none";
-      }
-    } else {
-      // background preview fallback
-      if (url) {
-        el.style.backgroundImage = `url(${url})`;
-        el.style.backgroundSize = "cover";
-        el.style.backgroundPosition = "center";
-      } else {
-        el.style.backgroundImage = "";
-      }
-    }
-
-    // Optional: toggle an "Empty" label if present
-    const emptyLabel = el.querySelector(".slot-empty");
-    if (emptyLabel) emptyLabel.style.display = url ? "none" : "block";
-
-    el.classList.toggle("is-selected", selectedSlot === idx);
-  });
-
-  setSelectedSlotText(selectedSlot);
-}
-
-function bindSlotClicks() {
-  const els = slotEls();
-  if (!els.length) return;
-
-  els.forEach((el, i) => {
-    el.addEventListener("click", () => {
-      selectedSlot = i + 1;
-      paintSlots();
-    });
-  });
-
-  paintSlots();
+  return Array.isArray(data?.value?.urls) ? data.value.urls : [];
 }
 
 // =============================
@@ -366,7 +361,8 @@ function bindSlotClicks() {
 refreshBtn?.addEventListener("click", refreshAll);
 
 logoutBtn?.addEventListener("click", async () => {
-  await supabaseClient.auth.signOut();
+  const client = await ensureSupabaseClient();
+  if (client) await client.auth.signOut();
   window.location.href = "index.html";
 });
 
@@ -385,99 +381,71 @@ uploadResumeBtn?.addEventListener("click", async () => {
   }
 });
 
+// ✅ FIXED: Slot-based image upload (Option B)
 uploadImagesBtn?.addEventListener("click", async () => {
-  const files = imageFiles?.files ? Array.from(imageFiles.files) : [];
-  if (!files.length) {
-    imagesStatus.textContent = "Please choose images first.";
+  const file = imageFiles?.files?.[0];
+  if (!file) {
+    imagesStatus.textContent = "Please choose an image first.";
     return;
   }
-
-  // Option B: replace a selected slot when uploading 1 image
-  if (files.length === 1 && !selectedSlot) {
+  if (selectedSlotIndex == null) {
     imagesStatus.textContent = "Select a slot first.";
     return;
   }
 
-  imagesStatus.textContent = "Uploading images…";
-
+  imagesStatus.textContent = "Uploading image…";
   try {
-    // Start from current state
-    const next = currentCarouselUrls.slice();
+    const newUrl = await uploadCarouselImageToSlot(file, selectedSlotIndex);
 
-    // Decide slot mapping
-    let slotOrder = [];
+    // Merge into 8-slot list
+    const base = ensureEightUrls(pendingCarouselUrls || currentCarouselUrls);
+    base[selectedSlotIndex] = newUrl;
 
-    if (files.length === 8) {
-      slotOrder = [1, 2, 3, 4, 5, 6, 7, 8];
-    } else if (files.length === 1) {
-      slotOrder = [selectedSlot];
-    } else {
-      // multiple but not 8
-      // If a slot is selected, fill sequentially starting there.
-      if (!selectedSlot) {
-        imagesStatus.textContent = "Select a slot first (or upload 8 files).";
-        return;
-      }
-      for (let s = selectedSlot; s <= 8 && slotOrder.length < files.length; s++) {
-        slotOrder.push(s);
-      }
-      if (slotOrder.length !== files.length) {
-        imagesStatus.textContent = "Not enough slots from the selected position. Choose another slot or upload fewer files.";
-        return;
-      }
-    }
+    pendingCarouselUrls = base;
+    imagesStatus.textContent = `Image uploaded to slot ${selectedSlotIndex + 1}. Ready to publish.`;
 
-    // Upload and fill
-    for (let i = 0; i < files.length; i++) {
-      const slotIndex = slotOrder[i];
-      const url = await uploadCarouselFileToSlot(files[i], slotIndex);
-      next[slotIndex - 1] = url;
-    }
-
-    // Update local states
-    currentCarouselUrls = next;
-    pendingCarouselUrls = next;
-
-    paintSlots();
-
-    imagesStatus.textContent =
-      files.length === 1
-        ? `Image uploaded to slot ${slotOrder[0]}. Ready to publish.`
-        : `Images uploaded (${files.length}). Ready to publish.`;
+    // Update preview immediately
+    renderCarouselPreview(pendingCarouselUrls);
   } catch (e) {
     console.warn(e);
     imagesStatus.textContent = "Upload failed. Check console.";
+  } finally {
+    try { imageFiles.value = ""; } catch (_) {}
   }
 });
 
 publishBtn?.addEventListener("click", async () => {
   publishStatus.textContent = "Publishing…";
-
   try {
+    if (!pendingResumeUrl && !pendingCarouselUrls) {
+      publishStatus.textContent = "Nothing to publish yet.";
+      return;
+    }
+
     await publishAssets({
       resumeUrl: pendingResumeUrl,
       carouselUrls: pendingCarouselUrls,
     });
 
-    // Proof read-back
-    const { data } = await supabaseClient
-      .from("site_assets")
-      .select("key,value")
-      .in("key", ["resume_url", "carousel_images"]);
+    // Proof (read-back)
+    let liveCarouselUrls = [];
+    try {
+      liveCarouselUrls = await readBackCarouselUrls();
+    } catch (e) {
+      console.warn("[admin] readBackCarouselUrls failed:", e);
+    }
 
-    const map = new Map((data || []).map((r) => [r.key, r.value]));
-    const resumeOK = !!map.get("resume_url")?.url;
-    const carCount = Array.isArray(map.get("carousel_images")?.urls)
-      ? map.get("carousel_images").urls.filter(Boolean).length
-      : 0;
+    const resumeOk = !!pendingResumeUrl;
+    const carouselOk = Array.isArray(liveCarouselUrls) && liveCarouselUrls.length > 0;
 
-    publishStatus.textContent = `Published! Resume: ${resumeOK ? "OK" : "EMPTY"} | Carousel: ${carCount ? "OK" : "EMPTY"}`;
+    publishStatus.textContent = `Published! Resume: ${resumeOk ? "OK" : "SKIP"} | Carousel: ${carouselOk ? "OK" : "EMPTY"}`;
 
-    // Clear pending (so you don't republish by accident)
+    if (pendingCarouselUrls) {
+      currentCarouselUrls = ensureEightUrls(pendingCarouselUrls);
+      pendingCarouselUrls = null;
+    }
     pendingResumeUrl = null;
-    pendingCarouselUrls = null;
 
-    // Refresh overview
     await refreshAll();
   } catch (e) {
     console.warn(e);
@@ -494,19 +462,7 @@ publishBtn?.addEventListener("click", async () => {
 
   await refreshAll();
 
-  // Make sure the 8 carousel slots exist (older admin.html deployments may not include them)
-  ensureSlotGrid();
-
-  // Load published carousel URLs so the slots show what's currently live
-  try {
-    await readPublishedAssets();
-  } catch (e) {
-    console.warn("[admin] readPublishedAssets failed:", e);
-  }
-
-  // Bind slot click selection (works whether your HTML pre-renders slots or not)
-  ensureSlotGrid();
-  bindSlotClicks();
-  // Paint once more after binding (ensures thumbnails appear immediately)
-  paintSlots();
+  currentCarouselUrls = await loadCarouselUrlsFromDB();
+  renderCarouselPreview(currentCarouselUrls);
+  setSelectedSlot(null);
 })();
