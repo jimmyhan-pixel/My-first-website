@@ -327,6 +327,10 @@ function setCarouselOpenState(nextOpen) {
 // =============================
 // LOAD CAROUSEL IMAGES FROM DATABASE
 // =============================
+// This function runs when the page loads and updates the carousel images
+// to show the latest images that were uploaded through the admin dashboard.
+// It connects to Supabase, reads the current image URLs from the database,
+// and replaces the hardcoded image sources with the database URLs.
 (async function loadCarouselImagesFromDB() {
   const container = document.getElementById("carousel-container");
   const images = container?.querySelectorAll(".carousel-ring img");
@@ -338,6 +342,7 @@ function setCarouselOpenState(nextOpen) {
 
   try {
     // Initialize Supabase client if not already done
+    // This creates a connection to your Supabase database so we can read data from it
     let client = window.supabaseClient;
     if (!client && typeof supabase !== "undefined") {
       client = supabase.createClient(
@@ -352,7 +357,9 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
-    // Fetch carousel URLs from database
+    // Fetch carousel URLs from the site_assets table in the database
+    // We're looking for the row where key = "carousel_images"
+    // This row contains an array of 8 image URLs (one for each carousel slot)
     const { data, error } = await client
       .from("site_assets")
       .select("value")
@@ -364,6 +371,8 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
+    // Extract the URLs array from the database response
+    // The database stores this as: { "urls": ["image1.png", "image2.png", ...] }
     const urls = data?.value?.urls;
     
     if (!Array.isArray(urls) || urls.length === 0) {
@@ -371,7 +380,9 @@ function setCarouselOpenState(nextOpen) {
       return;
     }
 
-    // Update each image src with the database URL
+    // Update each image element's src attribute with the corresponding URL from the database
+    // This loop goes through slots 1-8 and replaces each image source
+    // If you uploaded a new image to slot 6 via admin, this is where that change takes effect
     images.forEach((img, index) => {
       if (urls[index]) {
         img.src = urls[index];
@@ -383,10 +394,11 @@ function setCarouselOpenState(nextOpen) {
 
   } catch (err) {
     console.warn('[carousel] Error loading carousel images:', err);
-    // Fail silently and use default images
+    // If anything goes wrong, we fail silently and the page will just show
+    // the default hardcoded images from the HTML. This prevents the carousel
+    // from breaking completely if there's a database connection issue.
   }
 })();
-
 
 // =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
