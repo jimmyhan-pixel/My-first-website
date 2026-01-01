@@ -189,21 +189,14 @@ let selectedSlotIndex = null;   // 0..7
 
 function setSelectedSlot(index) {
   selectedSlotIndex = index;
-  
-  const hintElement = document.getElementById("carouselSelectedIndex");
-  if (hintElement) {
-    hintElement.textContent = index == null ? "None" : String(index + 1);
+  if (selectedSlotText) {
+    selectedSlotText.textContent = index == null ? "None" : String(index + 1);
   }
-  
-  // Remove highlight from all slots
-  document.querySelectorAll(".carousel-slot").forEach((el) => {
-    el.classList.remove("selected");
-  });
-  
-  // Add highlight to selected slot
+  // highlight
+  document.querySelectorAll(".carousel-slot").forEach((el) => el.classList.remove("selected"));
   if (index != null) {
     const el = document.querySelector(`.carousel-slot[data-slot='${index}']`);
-    if (el) el.classList.add("selected");
+    el?.classList.add("selected");
   }
 }
 
@@ -266,13 +259,7 @@ function renderCarouselPreview(urls) {
     });
   });
 
-  // Restore selection highlight if a slot was previously selected
-  if (selectedSlotIndex != null) {
-    const selectedSlot = carouselPreviewGrid.querySelector(
-      `.carousel-slot[data-slot="${selectedSlotIndex}"]`
-    );
-    if (selectedSlot) selectedSlot.classList.add("selected");
-  }
+  if (selectedSlotIndex != null) setSelectedSlot(selectedSlotIndex);
 }
 
 // Upload resume to public-assets and return public URL (+ cache buster)
@@ -323,22 +310,40 @@ async function publishAssets({ resumeUrl, carouselUrls }) {
   const client = await ensureSupabaseClient();
   if (!client) throw new Error("Supabase not ready");
 
+  console.log("[admin] 📤 publishAssets called with:");
+  console.log("[admin]   - resumeUrl:", resumeUrl);
+  console.log("[admin]   - carouselUrls:", carouselUrls);
+
   if (resumeUrl) {
+    console.log("[admin] Updating resume_url in database...");
     const { error } = await client
       .from("site_assets")
       .update({ value: { url: resumeUrl } })
       .eq("key", "resume_url");
-    if (error) throw error;
+    if (error) {
+      console.error("[admin] ❌ Resume update failed:", error);
+      throw error;
+    }
+    console.log("[admin] ✅ Resume updated successfully");
   }
 
   if (carouselUrls) {
     const safe = ensureEightUrls(carouselUrls);
-    const { error } = await client
+    console.log("[admin] Updating carousel_images in database with:", safe);
+    
+    const { data, error } = await client
       .from("site_assets")
       .update({ value: { urls: safe } })
       .eq("key", "carousel_images");
-    if (error) throw error;
+    
+    if (error) {
+      console.error("[admin] ❌ Carousel update failed:", error);
+      throw error;
+    }
+    console.log("[admin] ✅ Carousel updated successfully. Response:", data);
   }
+  
+  console.log("[admin] 🎉 publishAssets completed");
 }
 
 async function readBackCarouselUrls() {
@@ -422,15 +427,22 @@ publishBtn?.addEventListener("click", async () => {
       return;
     }
 
+    console.log("[admin] 🚀 Starting publish process...");
+    console.log("[admin] pendingResumeUrl:", pendingResumeUrl);
+    console.log("[admin] pendingCarouselUrls:", pendingCarouselUrls);
+
     await publishAssets({
       resumeUrl: pendingResumeUrl,
       carouselUrls: pendingCarouselUrls,
     });
 
+    console.log("[admin] ✅ publishAssets completed");
+
     // Proof (read-back)
     let liveCarouselUrls = [];
     try {
       liveCarouselUrls = await readBackCarouselUrls();
+      console.log("[admin] 📖 Read back from database:", liveCarouselUrls);
     } catch (e) {
       console.warn("[admin] readBackCarouselUrls failed:", e);
     }
@@ -448,7 +460,7 @@ publishBtn?.addEventListener("click", async () => {
 
     await refreshAll();
   } catch (e) {
-    console.warn(e);
+    console.error("[admin] ❌ Publish failed:", e);
     publishStatus.textContent = "Publish failed. Check console.";
   }
 });
