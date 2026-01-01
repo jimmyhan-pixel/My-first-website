@@ -61,248 +61,6 @@ const EMAILJS_TEMPLATE_ID = "template_7z3kejw";
   setInterval(update, 1000);
 })();
 
-
-// =============================
-// SUPABASE (Assets + Analytics)
-// =============================
-const SUPABASE_URL = "https://wumakgzighvtvtvprnri.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89";
-
-let supabaseClient = null;
-
-// Live assets read from DB
-let LIVE_RESUME_URL = "";
-let LIVE_CAROUSEL_URLS = [];
-
-async function ensureSupabaseClient() {
-  try {
-    // If the library isn't loaded (e.g., missing <script> tag), load it dynamically.
-    if (typeof supabase === "undefined") {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-        s.async = true;
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      });
-    }
-    if (!supabaseClient && typeof supabase !== "undefined") {
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-    }
-    return supabaseClient;
-  } catch (e) {
-    console.warn("[supabase] failed to init client:", e);
-    return null;
-  }
-}
-
-async function trackVisit() {
-  const client = await ensureSupabaseClient();
-  if (!client) return;
-  try {
-    await client.from("site_visits").insert([{ path: location.pathname }]);
-  } catch (err) {
-    console.warn("[visit] tracking failed:", err);
-  }
-}
-
-async function logResumeDownload({ organization, title, name = null, email = null }) {
-  const client = await ensureSupabaseClient();
-  if (!client) return;
-  try {
-    await client.from("resume_downloads").insert([{
-      organization,
-      title,
-      name,
-      email,
-      downloaded_at: new Date().toISOString(),
-    }]);
-  } catch (err) {
-    console.warn("[resume] log download failed:", err);
-  }
-}
-
-// Apply carousel URLs to existing ring without changing design
-function applyCarouselImages(urls) {
-  try {
-    if (!Array.isArray(urls) || urls.length === 0) return;
-    const ringEl = document.querySelector(".carousel-ring");
-    if (!ringEl) return;
-
-    // Rebuild images (keep same structure: <img ...>)
-    ringEl.innerHTML = urls.map((u) => `<img src="${u}" alt="">`).join("");
-
-    // Re-run layout after images exist
-    if (typeof layoutCarousel === "function") {
-      layoutCarousel();
-    }
-  } catch (e) {
-    console.warn("[assets] applyCarouselImages failed:", e);
-  }
-}
-
-async function loadPublishedAssets() {
-  const client = await ensureSupabaseClient();
-  if (!client) return;
-
-  try {
-    const { data, error } = await client
-      .from("site_assets")
-      .select("key,value")
-      .in("key", ["resume_url", "carousel_images"]);
-
-    if (error) throw error;
-
-    const map = new Map((data || []).map((r) => [r.key, r.value]));
-
-    const resume = map.get("resume_url");
-    LIVE_RESUME_URL = resume?.url || "";
-
-    const carousel = map.get("carousel_images");
-    LIVE_CAROUSEL_URLS = Array.isArray(carousel?.urls) ? carousel.urls : [];
-
-    // Update resume link so any fallback/manual link uses the live URL too
-    const resumeLinkEl = document.getElementById("resumeLink");
-    if (resumeLinkEl && LIVE_RESUME_URL) {
-      resumeLinkEl.setAttribute("href", LIVE_RESUME_URL);
-    }
-
-    // Update carousel images if published
-    if (LIVE_CAROUSEL_URLS.length) {
-      applyCarouselImages(LIVE_CAROUSEL_URLS);
-    }
-
-    console.log("[assets] resume:", LIVE_RESUME_URL ? "loaded" : "empty",
-                "| carousel:", LIVE_CAROUSEL_URLS.length ? `loaded(${LIVE_CAROUSEL_URLS.length})` : "empty");
-  } catch (e) {
-    console.warn("[assets] loadPublishedAssets failed:", e);
-  }
-}
-
-// kick off on page load (safe; doesn't change UI)
-trackVisit();
-loadPublishedAssets();
-
-// =============================
-// ADMIN LOGIN (compact slide-out) — deployed-safe init
-// =============================
-(function initAdminLoginRobust() {
-  async function init() {
-    const boxEl = document.getElementById("adminLoginBox");
-    const panelEl = document.getElementById("adminPanel");
-    const emailEl = document.getElementById("adminEmail");
-    const passEl = document.getElementById("adminPassword");
-    const btnEl = document.getElementById("adminLoginBtn");
-    const msgEl = document.getElementById("adminLoginMsg");
-
-    // If the login UI is not on this page, just stop (no errors)
-    if (!boxEl || !panelEl || !emailEl || !passEl || !btnEl) return false;
-
-    // Prevent double-binding if init runs twice
-    if (btnEl.dataset.bound === "1") return true;
-    btnEl.dataset.bound = "1";
-
-    // Clear autofill
-    emailEl.value = "";
-    passEl.value = "";
-    setTimeout(() => { emailEl.value = ""; passEl.value = ""; }, 0);
-    setTimeout(() => { emailEl.value = ""; passEl.value = ""; }, 200);
-
-    function setOpen(open) {
-      boxEl.classList.toggle("is-open", open);
-      btnEl.setAttribute("aria-expanded", String(open));
-      panelEl.setAttribute("aria-hidden", String(!open));
-      if (open) setTimeout(() => emailEl.focus(), 0);
-      if (!open && msgEl) msgEl.textContent = "";
-    }
-
-    function isOpen() {
-      return boxEl.classList.contains("is-open");
-    }
-
-    // Click button:
-    // - if closed: open panel
-    // - if open: attempt login (if filled), otherwise close
-    btnEl.addEventListener("click", async (e) => {
-      e.preventDefault();
-
-      if (!isOpen()) {
-        setOpen(true);
-        return;
-      }
-
-      const email = emailEl.value.trim();
-      const password = passEl.value;
-
-      if (!email && !password) {
-        setOpen(false);
-        return;
-      }
-
-      if (!email || !password) {
-        if (msgEl) msgEl.textContent = "Enter email + password.";
-        return;
-      }
-
-      try {
-        if (msgEl) msgEl.textContent = "Signing in...";
-
-        const client = await ensureSupabaseClient();
-        if (!client) {
-          if (msgEl) msgEl.textContent = "Supabase not ready. Refresh and try again.";
-          return;
-        }
-
-        const { data, error } = await client.auth.signInWithPassword({ email, password });
-
-        if (error) {
-          console.warn("[admin] login failed:", error);
-          if (msgEl) msgEl.textContent = `Login failed: ${error.message}`;
-          return;
-        }
-        if (!data?.session) {
-          if (msgEl) msgEl.textContent = "Login failed (no session).";
-          return;
-        }
-
-        if (msgEl) msgEl.textContent = "Success! Redirecting...";
-        window.location.href = "admin.html";
-      } catch (err) {
-        console.error("[admin] unexpected error:", err);
-        if (msgEl) msgEl.textContent = "Unexpected error. Check console.";
-      }
-    });
-
-    // Esc closes panel
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && isOpen()) setOpen(false);
-    });
-
-    // Click outside closes the panel (not carousel)
-    document.addEventListener("click", (e) => {
-      if (!isOpen()) return;
-      if (boxEl.contains(e.target)) return;
-      setOpen(false);
-    });
-
-    return true;
-  }
-
-  // DOM-ready + retry (for deployed timing differences)
-  const run = async () => {
-    const ok = await init();
-    if (!ok) setTimeout(init, 250);
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run);
-  } else {
-    run();
-  }
-})();
-
-
 // =============================
 // RESUME DOWNLOAD LOGIC
 // =============================
@@ -328,15 +86,11 @@ loadPublishedAssets();
 
     message.textContent = "Thank you! Preparing your download...";
 
-    // ✅ Record download info (does not block download)
-    logResumeDownload({ organization: org, title });
-
     // Try to prompt the native save-file picker first (preserving user gesture),
     // then fetch and write the file. If picker is not available or fails, fall back
     // to a standard blob download. This ordering prevents the picker being blocked
     // on deployed sites where async work breaks the user gesture.
     (async () => {
-      const urlToDownload = (LIVE_RESUME_URL || link.getAttribute('href'));
       try {
         if (window.showSaveFilePicker) {
           // Prompt picker immediately while still in the user gesture
@@ -347,7 +101,7 @@ loadPublishedAssets();
               types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }]
             });
           } catch (pickerErr) {
-            // user cancelled the picker or it's blocked — DO NOT proceed to download
+            // user cancelled the picker or it's blocked – DO NOT proceed to download
             console.warn('Save picker cancelled or blocked:', pickerErr);
             message.textContent = 'Save cancelled.';
             form.reset();
@@ -355,7 +109,7 @@ loadPublishedAssets();
           }
 
           // Now fetch the resume (only if a handle was obtained)
-          const res = await fetch(urlToDownload);
+          const res = await fetch(link.getAttribute('href'));
           if (!res.ok) throw new Error('Failed to fetch resume');
 
           if (handle) {
@@ -389,25 +143,25 @@ loadPublishedAssets();
             } catch (fsErr) {
               console.error('Error writing to file handle:', fsErr);
               // If writing fails, DO NOT auto-download. Offer a manual link instead.
-              message.innerHTML = 'Save failed — you can <a href="' + urlToDownload + '" download>click here</a> to download manually.';
+              message.innerHTML = 'Save failed – you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
               link.style.display = 'inline-block';
             }
           } else {
             // No handle selected (shouldn't happen because we return on cancel),
-            // but avoid auto-downloading — show a manual link instead.
-            message.innerHTML = 'No file chosen — you can <a href="' + urlToDownload + '" download>click here</a> to download manually.';
+            // but avoid auto-downloading – show a manual link instead.
+            message.innerHTML = 'No file chosen – you can <a href="' + link.getAttribute('href') + '" download>click here</a> to download manually.';
             link.style.display = 'inline-block';
           }
         } else {
-          // Browser doesn't support showSaveFilePicker — do not auto-download.
+          // Browser doesn't support showSaveFilePicker – do not auto-download.
           // Provide a manual download link so the user explicitly chooses to download.
-          message.innerHTML = 'Your browser cannot prompt a save dialog. <a href="' + urlToDownload + '" download>Click here to download</a>.';
+          message.innerHTML = 'Your browser cannot prompt a save dialog. <a href="' + link.getAttribute('href') + '" download>Click here to download</a>.';
           link.style.display = 'inline-block';
         }
       } catch (err) {
         console.error(err);
         // fallback to the original anchor if fetch fails
-        message.innerHTML = 'Download failed — you can <a href="' + urlToDownload + '" download>click here</a> to try manually.';
+        message.innerHTML = 'Download failed – you can <a href="' + link.getAttribute('href') + '" download>click here</a> to try manually.';
         link.style.display = 'inline-block';
       } finally {
         form.reset();
@@ -513,7 +267,7 @@ loadPublishedAssets();
     emailjs
       .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
       .then(() => {
-        addMessage("✅ Message sent. I’ll send email to you soon! "+ ownerName, "owner");
+        addMessage("✅ Message sent. I'll send email to you soon! "+ ownerName, "owner");
       })
       .catch((err) => {
         console.error("EmailJS error:", err);
@@ -524,10 +278,11 @@ loadPublishedAssets();
       });
   });
 })();
+
 // =============================
 // IMAGE CAROUSEL – STEP 1 TRIGGER
 // =============================
-// ring globals (available to trigger/layout/hover logic)
+// Ring globals (available to trigger/layout/hover logic)
 const ringPortal = document.getElementById("carousel-portal");
 const ringContainer = document.getElementById("carousel-container");
 const ring = document.querySelector(".carousel-ring");
@@ -557,7 +312,7 @@ function setCarouselOpenState(nextOpen) {
 (function initCarouselTrigger() {
   const trigger = document.getElementById("carouselTrigger");
   if (!trigger || !ringContainer) {
-    console.warn('[carousel] init aborted — missing elements', { trigger: !!trigger, ringContainer: !!ringContainer });
+    console.warn('[carousel] init aborted – missing elements', { trigger: !!trigger, ringContainer: !!ringContainer });
     return;
   }
 
@@ -565,13 +320,132 @@ function setCarouselOpenState(nextOpen) {
   trigger.addEventListener("click", (event) => {
     event.stopPropagation();
     setCarouselOpenState(!isOpen);
-    console.log('[carousel] trigger clicked — isOpen=', isOpen);
+    console.log('[carousel] trigger clicked – isOpen=', isOpen);
   });
 })();
+
+// =============================
+// LOAD CAROUSEL IMAGES FROM DATABASE
+// =============================
+// This function waits for both the DOM and Supabase library to be ready,
+// then loads the latest carousel images from the database and updates the page.
+// This ensures we don't try to connect to Supabase before the library has loaded.
+
+// Helper function: wait for Supabase library to be available
+function waitForSupabase() {
+  return new Promise((resolve) => {
+    // If Supabase is already loaded, resolve immediately
+    if (typeof supabase !== "undefined") {
+      resolve();
+      return;
+    }
+    
+    // Otherwise, check every 100ms until it's available (max 5 seconds)
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds total
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      
+      if (typeof supabase !== "undefined") {
+        clearInterval(checkInterval);
+        resolve();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.warn('[carousel] Supabase library did not load in time');
+        resolve(); // Resolve anyway to prevent hanging
+      }
+    }, 100);
+  });
+}
+
+// Main function: load carousel images from database
+async function loadCarouselImagesFromDB() {
+  console.log('[carousel] Starting image load from database...');
+  
+  // Wait for Supabase library to be available
+  await waitForSupabase();
+  
+  const container = document.getElementById("carousel-container");
+  const images = container?.querySelectorAll(".carousel-ring img");
+  
+  if (!images || images.length === 0) {
+    console.log('[carousel] No images found to update');
+    return;
+  }
+
+  console.log(`[carousel] Found ${images.length} images to potentially update`);
+
+  try {
+    // Initialize Supabase client if not already done
+    let client = window.supabaseClient;
+    if (!client && typeof supabase !== "undefined") {
+      console.log('[carousel] Creating Supabase client...');
+      client = supabase.createClient(
+        "https://wumakgzighvtvtvprnri.supabase.co",
+        "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89"
+      );
+      window.supabaseClient = client;
+    }
+
+    if (!client) {
+      console.log('[carousel] Supabase not available, using default images');
+      return;
+    }
+
+    console.log('[carousel] Fetching URLs from database...');
+
+    // Fetch carousel URLs from the site_assets table
+    const { data, error } = await client
+      .from("site_assets")
+      .select("value")
+      .eq("key", "carousel_images")
+      .single();
+
+    if (error) {
+      console.warn('[carousel] Failed to load from database:', error);
+      return;
+    }
+
+    // Extract the URLs array
+    const urls = data?.value?.urls;
+    
+    if (!Array.isArray(urls) || urls.length === 0) {
+      console.log('[carousel] No URLs in database, using default images');
+      return;
+    }
+
+    console.log('[carousel] Received URLs from database:', urls);
+
+    // Update each image src with the database URL
+    images.forEach((img, index) => {
+      if (urls[index]) {
+        const oldSrc = img.src;
+        img.src = urls[index];
+        console.log(`[carousel] Slot ${index + 1}: ${oldSrc} → ${urls[index]}`);
+      }
+    });
+
+    console.log('[carousel] ✅ Successfully loaded all images from database');
+
+  } catch (err) {
+    console.warn('[carousel] Error loading carousel images:', err);
+    // Fail silently and use default images
+  }
+}
+
+// Run the function when DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadCarouselImagesFromDB);
+} else {
+  // DOM is already loaded, run immediately
+  loadCarouselImagesFromDB();
+}
+
 // =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
 // =============================
-function layoutCarousel() {
+(function initCarouselLayout() {
   const container = document.getElementById("carousel-container");
   const images = container?.querySelectorAll("img");
   if (!container || !images.length) return;
@@ -613,9 +487,8 @@ function layoutCarousel() {
     img.style.setProperty("--carousel-scale", "1");
     img.style.transform = `translate(-50%, -50%) rotateY(${angle}deg) translateZ(${radius}px) scale(var(--carousel-scale))`;
   });
-}
-// Run once on load
-layoutCarousel();
+})();
+
 // =============================
 // IMAGE RING – STEP 2: OPEN + AUTO ROTATE
 // =============================
@@ -623,19 +496,16 @@ layoutCarousel();
 // Pause on hover + resume only when open
 if (ringContainer) {
   ringContainer.addEventListener("mouseenter", () => {
-    stopAutoRotate(); // 保留你原本“悬停暂停”的设计
+    stopAutoRotate();
   });
 
   ringContainer.addEventListener("mouseleave", () => {
-    // 离开时如果是打开状态，继续自动旋转
     if (isOpen) {
       clearActiveImage();
       startAutoRotate();
     }
   });
 
-  // ✅ 不再允许点击 container 关闭 carousel
-  // 仅阻止冒泡即可（避免影响其他点击逻辑）
   ringContainer.addEventListener("click", (event) => {
     event.stopPropagation();
   });
@@ -644,7 +514,7 @@ if (ringContainer) {
 // Auto-rotate logic
 function startAutoRotate() {
   if (autoRotateTimer) return;
-  console.log("[carousel] startAutoRotate");
+  console.log('[carousel] startAutoRotate');
 
   ring?.classList.remove("snap");
   autoRotateTimer = setInterval(() => {
@@ -654,34 +524,26 @@ function startAutoRotate() {
 }
 
 function stopAutoRotate() {
-  console.log("[carousel] stopAutoRotate");
+  console.log('[carousel] stopAutoRotate');
   clearInterval(autoRotateTimer);
   autoRotateTimer = null;
 }
 
-// ✅ 清除激活图片：恢复所有图片到正常大小
 function clearActiveImage() {
   if (!ring) return;
-  ring.querySelectorAll("img").forEach((img) => {
-    img.classList.remove("is-active");
-    img.style.setProperty("--carousel-scale", "1");
-  });
+  const active = ring.querySelector(".is-active");
+  if (active) active.classList.remove("is-active");
 }
 
-// ✅ 聚焦图片：停止旋转 + 放大 40%
 function focusImage(img) {
   if (!img || !ring) return;
   const angle = Number(img.dataset.angle || 0);
-
   stopAutoRotate();
   clearActiveImage();
-
   img.classList.add("is-active");
-  img.style.setProperty("--carousel-scale", "1.4"); // ✅ 40% bigger
 
   const targetRotation = -angle * (Math.PI / 180);
   rotationY = targetRotation;
-
   ring.classList.add("snap");
   ring.style.transform = `rotateY(${rotationY}rad)`;
 
@@ -690,73 +552,104 @@ function focusImage(img) {
   }, 700);
 }
 
-// =============================
-// ✅ FIX #2: 鼠标滑动触发方向翻转（速度不变）
-// 逻辑：当“滑动方向” ≠ “当前旋转方向”时才翻转
-// =============================
-let lastMouseX = null;
-const MOUSE_DIR_THRESHOLD = 2; // px 防抖
-
-// 说明：你原来注释写 rotationSpeed=0.004 是“left rotation”
-// 所以这里约定：rotationSpeed > 0 代表“向左”，<0 代表“向右”
-function getRotateDirLR() {
-  return rotationSpeed > 0 ? -1 : 1; // -1=left, 1=right
-}
-
-function flipRotateDirKeepSpeed() {
-  rotationSpeed = -rotationSpeed; // ✅ 只翻转正负号，速度大小不变
-}
-
 if (ring) {
-  // ✅ 点击图片只做一件事：focus（不关闭 carousel）
   ring.addEventListener("click", (event) => {
     const target = event.target;
     if (target instanceof HTMLImageElement) {
       focusImage(target);
     }
   });
+}
 
-  // ✅ 在图片上滑动：如果方向不一致就翻转方向
-  ring.querySelectorAll("img").forEach((img) => {
-    img.addEventListener("mouseenter", () => {
-      lastMouseX = null;
-    });
+document.addEventListener("click", (event) => {
+  if (!isOpen) return;
+  const target = event.target;
+  if (ringContainer?.contains(target)) return;
+  if (ringButton && target === ringButton) return;
+  setCarouselOpenState(false);
+});
 
-    img.addEventListener("mousemove", (event) => {
-      if (!isOpen) return;
+// =============================
+// ADMIN LOGIN HANDLER
+// =============================
+(function initAdminLogin() {
+  const loginBox = document.getElementById("adminLoginBox");
+  const loginBtn = document.getElementById("adminLoginBtn");
+  const adminPanel = document.getElementById("adminPanel");
+  const emailInput = document.getElementById("adminEmail");
+  const passwordInput = document.getElementById("adminPassword");
+  const loginMsg = document.getElementById("adminLoginMsg");
 
-      // 你原本 hover 会 stopAutoRotate()
-      // 为了让“滑动改变方向”可见：只要你开始滑动，就恢复旋转
-      if (!autoRotateTimer) startAutoRotate();
+  if (!loginBox || !loginBtn) return;
 
-      if (lastMouseX === null) {
-        lastMouseX = event.clientX;
+  let isOpen = false;
+
+  // Toggle panel visibility
+  loginBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    
+    if (!isOpen) {
+      // Open the panel to show inputs
+      isOpen = true;
+      loginBox.classList.add("is-open");
+      loginBtn.setAttribute("aria-expanded", "true");
+      adminPanel.setAttribute("aria-hidden", "false");
+      setTimeout(() => emailInput?.focus(), 150);
+    } else {
+      // Try to login
+      const email = emailInput?.value?.trim();
+      const password = passwordInput?.value?.trim();
+
+      if (!email || !password) {
+        loginMsg.textContent = "Please enter both email and password";
         return;
       }
 
-      const deltaX = event.clientX - lastMouseX;
-      if (Math.abs(deltaX) < MOUSE_DIR_THRESHOLD) return;
+      loginMsg.textContent = "Logging in...";
 
-      const mouseDir = deltaX > 0 ? 1 : -1; // 1=right, -1=left
-      const rotDir = getRotateDirLR();       // 1=right, -1=left
+      try {
+        // Initialize Supabase if needed
+        let client = window.supabaseClient;
+        if (!client && typeof supabase !== "undefined") {
+          client = supabase.createClient(
+            "https://wumakgzighvtvtvprnri.supabase.co",
+            "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89"
+          );
+          window.supabaseClient = client;
+        }
 
-      // ✅ 只有不一致才翻转（你要求的触发逻辑）
-      if (mouseDir !== rotDir) {
-        flipRotateDirKeepSpeed();
+        if (!client) {
+          loginMsg.textContent = "Error: Supabase not loaded";
+          return;
+        }
+
+        const { data, error } = await client.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+
+        if (error) throw error;
+
+        loginMsg.textContent = "Success! Redirecting...";
+        setTimeout(() => {
+          window.location.href = "admin.html";
+        }, 500);
+
+      } catch (err) {
+        console.error("Login error:", err);
+        loginMsg.textContent = "Login failed: " + err.message;
       }
-
-      lastMouseX = event.clientX;
-    });
+    }
   });
-}
 
-// =============================
-// ✅ FIX #1: 删除“点击任意地方关闭”
-// 关闭 carousel 只能由按钮 ringButton 的 toggle 逻辑完成
-// =============================
-
-// ❌ 删除你原来的 document click 关闭逻辑（不要再加回来）
-// document.addEventListener("click", ... setCarouselOpenState(false));
-
-
-
+  // Close panel when clicking outside
+  document.addEventListener("click", (e) => {
+    if (isOpen && !loginBox.contains(e.target)) {
+      isOpen = false;
+      loginBox.classList.remove("is-open");
+      loginBtn.setAttribute("aria-expanded", "false");
+      adminPanel.setAttribute("aria-hidden", "true");
+      loginMsg.textContent = "";
+    }
+  });
+})();

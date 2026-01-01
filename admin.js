@@ -1,13 +1,38 @@
 // =============================
+// admin.js (FIXED: carousel slot replace + reliable Supabase load)
+// Keep all UI/CSS/HTML the same — this only fixes behavior.
+// =============================
+
+// =============================
 // SUPABASE INIT (same as your site)
 // =============================
 const SUPABASE_URL = "https://wumakgzighvtvtvprnri.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89";
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+let supabaseClient = null;
+
+// Load Supabase JS if missing (important on deployed sites)
+async function ensureSupabaseClient() {
+  try {
+    if (typeof supabase === "undefined") {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    if (!supabaseClient && typeof supabase !== "undefined") {
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    }
+    return supabaseClient;
+  } catch (e) {
+    console.warn("[admin] failed to init supabase:", e);
+    return null;
+  }
+}
 
 // =============================
 // DOM
@@ -22,6 +47,7 @@ const downloadsTableBody = document.getElementById("downloadsTableBody");
 
 const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+
 const resumeFile = document.getElementById("resumeFile");
 const uploadResumeBtn = document.getElementById("uploadResumeBtn");
 const resumeStatus = document.getElementById("resumeStatus");
@@ -33,11 +59,21 @@ const imagesStatus = document.getElementById("imagesStatus");
 const publishBtn = document.getElementById("publishBtn");
 const publishStatus = document.getElementById("publishStatus");
 
+// Carousel preview grid (8 slots) from admin.html
+const carouselPreviewGrid = document.getElementById("carouselPreviewGrid");
+const selectedSlotText = document.getElementById("selectedSlotText");
+
 // =============================
 // Auth guard
 // =============================
 async function requireLogin() {
-  const { data, error } = await supabaseClient.auth.getSession();
+  const client = await ensureSupabaseClient();
+  if (!client) {
+    statusMsg.textContent = "Supabase not loaded.";
+    return false;
+  }
+
+  const { data, error } = await client.auth.getSession();
   if (error) {
     statusMsg.textContent = "Auth error.";
     console.warn("[admin] getSession error", error);
@@ -59,18 +95,18 @@ async function requireLogin() {
 // =============================
 async function loadOverview() {
   overviewError.textContent = "";
+  const client = await ensureSupabaseClient();
+  if (!client) return;
 
   try {
-    const { count: visitTotal, error: vErr } = await supabaseClient
+    const { count: visitTotal, error: vErr } = await client
       .from("site_visits")
       .select("id", { count: "exact", head: true });
-
     if (vErr) throw vErr;
 
-    const { count: dlTotal, error: dErr } = await supabaseClient
+    const { count: dlTotal, error: dErr } = await client
       .from("resume_downloads")
       .select("id", { count: "exact", head: true });
-
     if (dErr) throw dErr;
 
     visitsCount.textContent = String(visitTotal ?? 0);
@@ -94,9 +130,11 @@ function escapeHtml(s) {
 
 async function loadRecentDownloads() {
   downloadsError.textContent = "";
+  const client = await ensureSupabaseClient();
+  if (!client) return;
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await client
       .from("resume_downloads")
       .select("organization,title,name,email,downloaded_at")
       .order("downloaded_at", { ascending: false })
@@ -139,19 +177,99 @@ async function refreshAll() {
 }
 
 // =============================
-// Pending (draft) assets before publish
+// Upload helpers (resume + carousel)
 // =============================
 let pendingResumeUrl = null;
-let pendingImageUrls = null;
 
-// =============================
-// Upload resume to PUBLIC bucket (Option A)
-// =============================
+// Option B: slot replace (keep 8 URLs)
+const DEFAULT_CAROUSEL_URLS = Array.from({ length: 8 }, (_, i) => `images/img${i + 1}.png`);
+let currentCarouselUrls = DEFAULT_CAROUSEL_URLS.slice(); // what is currently live in DB
+let pendingCarouselUrls = null; // staged changes to publish
+let selectedSlotIndex = null;   // 0..7
+
+function setSelectedSlot(index) {
+  selectedSlotIndex = index;
+  if (selectedSlotText) {
+    selectedSlotText.textContent = index == null ? "None" : String(index + 1);
+  }
+  // highlight
+  document.querySelectorAll(".carousel-slot").forEach((el) => el.classList.remove("selected"));
+  if (index != null) {
+    const el = document.querySelector(`.carousel-slot[data-slot='${index}']`);
+    el?.classList.add("selected");
+  }
+}
+
+function ensureEightUrls(urls) {
+  const out = Array.isArray(urls) ? urls.slice(0, 8) : [];
+  while (out.length < 8) out.push(DEFAULT_CAROUSEL_URLS[out.length] || "");
+  return out;
+}
+
+async function loadCarouselUrlsFromDB() {
+  const client = await ensureSupabaseClient();
+  if (!client) return DEFAULT_CAROUSEL_URLS.slice();
+
+  try {
+    const { data, error } = await client
+      .from("site_assets")
+      .select("value")
+      .eq("key", "carousel_images")
+      .single();
+
+    if (error) throw error;
+
+    const urls = data?.value?.urls;
+    if (Array.isArray(urls) && urls.length) {
+      return ensureEightUrls(urls);
+    }
+    return DEFAULT_CAROUSEL_URLS.slice();
+  } catch (e) {
+    console.warn("[admin] loadCarouselUrlsFromDB failed:", e);
+    return DEFAULT_CAROUSEL_URLS.slice();
+  }
+}
+
+function renderCarouselPreview(urls) {
+  if (!carouselPreviewGrid) return;
+
+  const safe = ensureEightUrls(urls);
+
+  carouselPreviewGrid.innerHTML = safe
+    .map((url, idx) => {
+      const hasImg = !!url;
+      const imgHtml = hasImg
+        ? `<img src="${url}" alt="Slot ${idx + 1}" />`
+        : `<div class="empty">Empty</div>`;
+      return `
+        <div class="carousel-slot" data-slot="${idx}">
+          <div class="slot-badge">${idx + 1}</div>
+          ${imgHtml}
+        </div>
+      `;
+    })
+    .join("");
+
+  // Click to select slot
+  carouselPreviewGrid.querySelectorAll(".carousel-slot").forEach((slot) => {
+    slot.addEventListener("click", () => {
+      const idx = Number(slot.getAttribute("data-slot"));
+      setSelectedSlot(Number.isFinite(idx) ? idx : null);
+      if (imagesStatus) imagesStatus.textContent = "";
+    });
+  });
+
+  if (selectedSlotIndex != null) setSelectedSlot(selectedSlotIndex);
+}
+
+// Upload resume to public-assets and return public URL (+ cache buster)
 async function uploadResume(file) {
-  // Always overwrite this path
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
+
   const path = "resume/current.pdf";
 
-  const { error: upErr } = await supabaseClient.storage
+  const { error: upErr } = await client.storage
     .from("public-assets")
     .upload(path, file, {
       upsert: true,
@@ -161,89 +279,85 @@ async function uploadResume(file) {
 
   if (upErr) throw upErr;
 
-  const { data } = supabaseClient.storage
-    .from("public-assets")
-    .getPublicUrl(path);
-
-  // Cache-busting param forces browsers to fetch newest file
+  const { data } = client.storage.from("public-assets").getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-// =============================
-// Upload images to public-assets and return public URLs
-// =============================
-async function uploadImages(files) {
-  const urls = [];
+// Upload ONE image to the selected slot path and return URL (+ cache buster)
+async function uploadCarouselImageToSlot(file, slotIndex) {
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
 
-  for (const file of files) {
-    const safeName = file.name.replace(/\s+/g, "_");
-    const path = `carousel/${Date.now()}_${safeName}`;
+  const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ext || "png";
+  const path = `carousel/slot-${slotIndex + 1}.${safeExt}`;
 
-    const { error: upErr } = await supabaseClient.storage
-      .from("public-assets")
-      .upload(path, file, { upsert: true, contentType: file.type });
+  const { error: upErr } = await client.storage
+    .from("public-assets")
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type || "image/png",
+      cacheControl: "0",
+    });
+  if (upErr) throw upErr;
 
-    if (upErr) throw upErr;
-
-    const { data } = supabaseClient.storage
-      .from("public-assets")
-      .getPublicUrl(path);
-
-    urls.push(`${data.publicUrl}?v=${Date.now()}`);
-  }
-
-  return urls;
+  const { data } = client.storage.from("public-assets").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-// =============================
 // Publish to DB so the public site can read current assets
-// =============================
-async function publishAssets({ resumeUrl, imageUrls }) {
-  // Update resume_url row
+async function publishAssets({ resumeUrl, carouselUrls }) {
+  const client = await ensureSupabaseClient();
+  if (!client) throw new Error("Supabase not ready");
+
+  console.log("[admin] 📤 publishAssets called with:");
+  console.log("[admin]   - resumeUrl:", resumeUrl);
+  console.log("[admin]   - carouselUrls:", carouselUrls);
+
   if (resumeUrl) {
-    const { error } = await supabaseClient
+    console.log("[admin] Updating resume_url in database...");
+    const { error } = await client
       .from("site_assets")
       .update({ value: { url: resumeUrl } })
       .eq("key", "resume_url");
-    if (error) throw error;
+    if (error) {
+      console.error("[admin] ❌ Resume update failed:", error);
+      throw error;
+    }
+    console.log("[admin] ✅ Resume updated successfully");
   }
 
-  // Update carousel_images row
-  if (imageUrls && imageUrls.length) {
-    const { error } = await supabaseClient
+  if (carouselUrls) {
+    const safe = ensureEightUrls(carouselUrls);
+    console.log("[admin] Updating carousel_images in database with:", safe);
+    
+    const { data, error } = await client
       .from("site_assets")
-      .update({ value: { urls: imageUrls } })
+      .update({ value: { urls: safe } })
       .eq("key", "carousel_images");
-    if (error) throw error;
+    
+    if (error) {
+      console.error("[admin] ❌ Carousel update failed:", error);
+      throw error;
+    }
+    console.log("[admin] ✅ Carousel updated successfully. Response:", data);
   }
+  
+  console.log("[admin] 🎉 publishAssets completed");
 }
 
-// =============================
-// Proof helper: read back resume_url from DB
-// =============================
-async function readBackResumeUrl() {
-  const { data, error } = await supabaseClient
-    .from("site_assets")
-    .select("value")
-    .eq("key", "resume_url")
-    .single();
-
-  if (error) throw error;
-  return data?.value?.url || "";
-}
-
-
-// Proof helper: read back carousel_images from DB
 async function readBackCarouselUrls() {
-  const { data, error } = await supabaseClient
+  const client = await ensureSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
     .from("site_assets")
     .select("value")
     .eq("key", "carousel_images")
     .single();
 
   if (error) throw error;
-  const urls = data?.value?.urls;
-  return Array.isArray(urls) ? urls : [];
+  return Array.isArray(data?.value?.urls) ? data.value.urls : [];
 }
 
 // =============================
@@ -252,79 +366,101 @@ async function readBackCarouselUrls() {
 refreshBtn?.addEventListener("click", refreshAll);
 
 logoutBtn?.addEventListener("click", async () => {
-  await supabaseClient.auth.signOut();
+  const client = await ensureSupabaseClient();
+  if (client) await client.auth.signOut();
   window.location.href = "index.html";
 });
 
 uploadResumeBtn?.addEventListener("click", async () => {
-  const file = resumeFile?.files?.[0];
-  if (!file) {
+  if (!resumeFile?.files?.[0]) {
     resumeStatus.textContent = "Please choose a PDF first.";
     return;
   }
-
   resumeStatus.textContent = "Uploading resume…";
   try {
-    pendingResumeUrl = await uploadResume(file);
+    pendingResumeUrl = await uploadResume(resumeFile.files[0]);
     resumeStatus.textContent = "Resume uploaded. Ready to publish.";
-    console.log("[admin] pendingResumeUrl:", pendingResumeUrl);
   } catch (e) {
     console.warn(e);
     resumeStatus.textContent = "Upload failed. Check console.";
   }
 });
 
+// ✅ FIXED: Slot-based image upload (Option B)
 uploadImagesBtn?.addEventListener("click", async () => {
-  const files = imageFiles?.files ? Array.from(imageFiles.files) : [];
-  if (!files.length) {
-    imagesStatus.textContent = "Please choose images first.";
+  const file = imageFiles?.files?.[0];
+  if (!file) {
+    imagesStatus.textContent = "Please choose an image first.";
+    return;
+  }
+  if (selectedSlotIndex == null) {
+    imagesStatus.textContent = "Select a slot first.";
     return;
   }
 
-  imagesStatus.textContent = "Uploading images…";
+  imagesStatus.textContent = "Uploading image…";
   try {
-    pendingImageUrls = await uploadImages(files);
-    imagesStatus.textContent = `Images uploaded (${pendingImageUrls.length}). Ready to publish.`;
-    console.log("[admin] pendingImageUrls:", pendingImageUrls);
+    const newUrl = await uploadCarouselImageToSlot(file, selectedSlotIndex);
+
+    // Merge into 8-slot list
+    const base = ensureEightUrls(pendingCarouselUrls || currentCarouselUrls);
+    base[selectedSlotIndex] = newUrl;
+
+    pendingCarouselUrls = base;
+    imagesStatus.textContent = `Image uploaded to slot ${selectedSlotIndex + 1}. Ready to publish.`;
+
+    // Update preview immediately
+    renderCarouselPreview(pendingCarouselUrls);
   } catch (e) {
     console.warn(e);
     imagesStatus.textContent = "Upload failed. Check console.";
+  } finally {
+    try { imageFiles.value = ""; } catch (_) {}
   }
 });
 
 publishBtn?.addEventListener("click", async () => {
-  // ✅ prevent publishing if nothing is pending
-  if (!pendingResumeUrl && (!pendingImageUrls || !pendingImageUrls.length)) {
-    publishStatus.textContent = "Nothing to publish. Upload resume/images first.";
-    return;
-  }
-
   publishStatus.textContent = "Publishing…";
-
   try {
+    if (!pendingResumeUrl && !pendingCarouselUrls) {
+      publishStatus.textContent = "Nothing to publish yet.";
+      return;
+    }
+
+    console.log("[admin] 🚀 Starting publish process...");
+    console.log("[admin] pendingResumeUrl:", pendingResumeUrl);
+    console.log("[admin] pendingCarouselUrls:", pendingCarouselUrls);
+
     await publishAssets({
       resumeUrl: pendingResumeUrl,
-      imageUrls: pendingImageUrls,
+      carouselUrls: pendingCarouselUrls,
     });
 
-    // ✅ proof (read back from DB)
-    const liveResumeUrl = await readBackResumeUrl();
-    const liveCarouselUrls = await readBackCarouselUrls();
+    console.log("[admin] ✅ publishAssets completed");
 
-    const resumeOk = !!liveResumeUrl;
+    // Proof (read-back)
+    let liveCarouselUrls = [];
+    try {
+      liveCarouselUrls = await readBackCarouselUrls();
+      console.log("[admin] 📖 Read back from database:", liveCarouselUrls);
+    } catch (e) {
+      console.warn("[admin] readBackCarouselUrls failed:", e);
+    }
+
+    const resumeOk = !!pendingResumeUrl;
     const carouselOk = Array.isArray(liveCarouselUrls) && liveCarouselUrls.length > 0;
 
-    publishStatus.textContent =
-      `Published! Resume: ${resumeOk ? "OK" : "EMPTY"} | Carousel: ${carouselOk ? ("OK (" + liveCarouselUrls.length + ")") : "EMPTY"}`; 
+    publishStatus.textContent = `Published! Resume: ${resumeOk ? "OK" : "SKIP"} | Carousel: ${carouselOk ? "OK" : "EMPTY"}`;
 
-    // Clear pending so you don't accidentally re-publish old values
+    if (pendingCarouselUrls) {
+      currentCarouselUrls = ensureEightUrls(pendingCarouselUrls);
+      pendingCarouselUrls = null;
+    }
     pendingResumeUrl = null;
-    pendingImageUrls = null;
 
-    // Optionally refresh dashboard
     await refreshAll();
   } catch (e) {
-    console.warn(e);
+    console.error("[admin] ❌ Publish failed:", e);
     publishStatus.textContent = "Publish failed. Check console.";
   }
 });
@@ -335,5 +471,10 @@ publishBtn?.addEventListener("click", async () => {
 (async function boot() {
   const ok = await requireLogin();
   if (!ok) return;
+
   await refreshAll();
+
+  currentCarouselUrls = await loadCarouselUrlsFromDB();
+  renderCarouselPreview(currentCarouselUrls);
+  setSelectedSlot(null);
 })();
