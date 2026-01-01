@@ -325,6 +325,70 @@ function setCarouselOpenState(nextOpen) {
 })();
 
 // =============================
+// LOAD CAROUSEL IMAGES FROM DATABASE
+// =============================
+(async function loadCarouselImagesFromDB() {
+  const container = document.getElementById("carousel-container");
+  const images = container?.querySelectorAll(".carousel-ring img");
+  
+  if (!images || images.length === 0) {
+    console.log('[carousel] No images found to update');
+    return;
+  }
+
+  try {
+    // Initialize Supabase client if not already done
+    let client = window.supabaseClient;
+    if (!client && typeof supabase !== "undefined") {
+      client = supabase.createClient(
+        "https://wumakgzighvtvtvprnri.supabase.co",
+        "sb_publishable_Li3EhE3QIYmYzdyRNeLIow_hxHRjM89"
+      );
+      window.supabaseClient = client;
+    }
+
+    if (!client) {
+      console.log('[carousel] Supabase not available, using default images');
+      return;
+    }
+
+    // Fetch carousel URLs from database
+    const { data, error } = await client
+      .from("site_assets")
+      .select("value")
+      .eq("key", "carousel_images")
+      .single();
+
+    if (error) {
+      console.warn('[carousel] Failed to load from database:', error);
+      return;
+    }
+
+    const urls = data?.value?.urls;
+    
+    if (!Array.isArray(urls) || urls.length === 0) {
+      console.log('[carousel] No URLs in database, using default images');
+      return;
+    }
+
+    // Update each image src with the database URL
+    images.forEach((img, index) => {
+      if (urls[index]) {
+        img.src = urls[index];
+        console.log(`[carousel] Updated slot ${index + 1} to: ${urls[index]}`);
+      }
+    });
+
+    console.log('[carousel] Successfully loaded images from database');
+
+  } catch (err) {
+    console.warn('[carousel] Error loading carousel images:', err);
+    // Fail silently and use default images
+  }
+})();
+
+
+// =============================
 // IMAGE CAROUSEL – STEP 2 LAYOUT
 // =============================
 (function initCarouselLayout() {
