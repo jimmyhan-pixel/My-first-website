@@ -457,7 +457,7 @@ if (document.readyState === 'loading') {
 
   // base sizes to match CSS fallback
   const baseW = 220;
-  const baseH = 140;
+  const baseH = 280;
 
   const imgW = Math.round(baseW * scale);
   const imgH = Math.round(baseH * scale);
