@@ -61,8 +61,7 @@ const publishStatus = document.getElementById("publishStatus");
 
 // Carousel preview grid (8 slots) from admin.html
 const carouselPreviewGrid = document.getElementById("carouselPreviewGrid");
-const selectedSlotText = document.getElementById("selectedSlotText");
-
+const selectedSlotText = document.getElementById("carouselSelectedIndex");
 // =============================
 // Auth guard
 // =============================

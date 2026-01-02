@@ -457,15 +457,15 @@ if (document.readyState === 'loading') {
 
   // base sizes to match CSS fallback
   const baseW = 220;
-  const baseH = 200;
+  const baseH = 140;
 
   const imgW = Math.round(baseW * scale);
   const imgH = Math.round(baseH * scale);
 
-  // Set CSS variables for max dimensions (images will scale to fit)
+  // set actual sizes (override CSS fallback)
   images.forEach((img) => {
-    img.style.setProperty("--carousel-img-w", imgW + 'px');
-    img.style.setProperty("--carousel-img-h", imgH + 'px');
+    img.style.width = imgW + 'px';
+    img.style.height = imgH + 'px';
   });
 
   // compute minimal radius so images don't touch but aren't too far
@@ -491,13 +491,22 @@ if (document.readyState === 'loading') {
 })();
 
 // =============================
+// IMAGE RING – STEP 2: OPEN + AUTO ROTATE
+// =============================
+
+// =============================
 // IMAGE RING – NEW INTERACTION CODE
 // =============================
 
-// Handle carousel interactions
+// Pause on hover + resume only when open
 if (ringContainer) {
+  ringContainer.addEventListener("mouseenter", () => {
+    if (!activeImage) {
+      stopAutoRotate();
+    }
+  });
+
   ringContainer.addEventListener("mouseleave", () => {
-    // Only shrink active image when mouse leaves
     shrinkActiveImage();
   });
 
@@ -505,7 +514,7 @@ if (ringContainer) {
     event.stopPropagation();
   });
   
-  // NEW: Trackpad swipe left/right → reverse rotation
+ // NEW: Trackpad swipe left/right → reverse rotation
   let lastSwipeTime = 0;
   
   ringContainer.addEventListener("wheel", (event) => {
@@ -556,6 +565,8 @@ function reverseRotation() {
   console.log('[carousel] rotation reversed, new speed:', rotationSpeed);
 }
 
+
+
 function clearActiveImage() {
   if (!activeImage) return;
   activeImage.style.setProperty("--carousel-scale", "1");
@@ -585,12 +596,10 @@ function enlargeImage(img) {
 
 function shrinkActiveImage() {
   if (!activeImage) return;
-  console.log('[carousel] shrinkActiveImage called - restoring size and restarting rotation');
   activeImage.style.setProperty("--carousel-scale", "1");
   activeImage.classList.remove("is-active");
   activeImage = null;
   
-  // Always restart rotation when shrinking (if carousel is open)
   if (isOpen) {
     startAutoRotate();
   }
@@ -646,42 +655,14 @@ if (ring) {
   });
 }
 
-// =============================
-// CLICK OUTSIDE CAROUSEL - CONSOLIDATED HANDLER
-// This is the only click-outside handler. It detects clicks outside the carousel
-// and shrinks any enlarged image while keeping the carousel rotating.
-// =============================
+// Close carousel when clicking outside (keeping this functionality)
 document.addEventListener("click", (event) => {
-  // Only handle clicks when carousel is open
   if (!isOpen) return;
-  
-  console.log('[carousel] document click detected, target:', event.target.tagName);
-  
   const target = event.target;
-  
-  // Ignore clicks on the carousel trigger button - let the button handler deal with it
-  if (ringButton && (target === ringButton || ringButton.contains(target))) {
-    console.log('[carousel] click on button - ignoring');
-    return;
-  }
-  
-  // Ignore clicks inside the carousel container itself
-  if (ringContainer?.contains(target)) {
-    console.log('[carousel] click inside carousel - ignoring');
-    return;
-  }
-  
-  // If we reach here, the click is outside the carousel
-  console.log('[carousel] click outside detected, activeImage:', !!activeImage);
-  
-  // Shrink the active image if there is one (this also restarts rotation)
-  if (activeImage) {
-    console.log('[carousel] calling shrinkActiveImage to restore size and resume rotation');
-    shrinkActiveImage();
-  }
-  // If there's no active image, the carousel continues rotating normally - we do nothing
-}, true); // Use capture phase to catch the event before it bubbles
-
+  if (ringContainer?.contains(target)) return;
+  if (ringButton && target === ringButton) return;
+  setCarouselOpenState(false);
+});
 
 // =============================
 // ADMIN LOGIN HANDLER
@@ -756,14 +737,5 @@ document.addEventListener("click", (event) => {
     }
   });
 
-  // Close panel when clicking outside
-  document.addEventListener("click", (e) => {
-    if (isOpen && !loginBox.contains(e.target)) {
-      isOpen = false;
-      loginBox.classList.remove("is-open");
-      loginBtn.setAttribute("aria-expanded", "false");
-      adminPanel.setAttribute("aria-hidden", "true");
-      loginMsg.textContent = "";
-    }
-  });
+  
 })();
