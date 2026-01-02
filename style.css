@@ -397,7 +397,7 @@ transform: translateY(0);
 
   /* base sizes (used if JS not available) */
   --carousel-img-w: 220px;
-  --carousel-img-h: 280px;
+  --carousel-img-h: 200px;
 
   max-width: var(--carousel-img-w);
   max-height: var(--carousel-img-h);
