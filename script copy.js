@@ -462,10 +462,10 @@ if (document.readyState === 'loading') {
   const imgW = Math.round(baseW * scale);
   const imgH = Math.round(baseH * scale);
 
-  // Set CSS variables for max dimensions (images will scale to fit)
+  // set actual sizes (override CSS fallback)
   images.forEach((img) => {
-    img.style.setProperty("--carousel-img-w", imgW + 'px');
-    img.style.setProperty("--carousel-img-h", imgH + 'px');
+    img.style.width = imgW + 'px';
+    img.style.height = imgH + 'px';
   });
 
   // compute minimal radius so images don't touch but aren't too far

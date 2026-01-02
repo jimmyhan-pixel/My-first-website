@@ -400,9 +400,11 @@ transform: translateY(0);
   --carousel-img-w: 220px;
   --carousel-img-h: 140px;
 
-  width: var(--carousel-img-w);
-  height: var(--carousel-img-h);
-  object-fit: cover;
+  max-width: var(--carousel-img-w);
+  max-height: var(--carousel-img-h);
+  width: auto;
+  height: auto;
+  object-fit: contain;
   border-radius: 10px;
 
   transform-style: preserve-3d;
@@ -412,7 +414,7 @@ transform: translateY(0);
   cursor: pointer;
   user-select: none;
 
-} 
+}
 
 .carousel-preview-grid {
   display: grid;
