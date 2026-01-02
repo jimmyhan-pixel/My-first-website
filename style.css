@@ -390,7 +390,6 @@ transform: translateY(0);
   transform-style: preserve-3d;
 }
 
-/* Images */
 .carousel-ring img {
   position: absolute;
   top: 50%;
@@ -402,10 +401,14 @@ transform: translateY(0);
 
   max-width: var(--carousel-img-w);
   max-height: var(--carousel-img-h);
-  width: auto;
-  height: auto;
+  width: auto !important;
+  height: auto !important;
   object-fit: contain;
   border-radius: 10px;
+  
+  /* Ensure minimum visibility for very small images */
+  min-width: 80px;
+  min-height: 80px;
 
   transform-style: preserve-3d;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
