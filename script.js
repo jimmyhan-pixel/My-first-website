@@ -756,6 +756,9 @@ document.addEventListener("click", (event) => {
     }
   });
 
+
+
+
   // Close panel when clicking outside
   document.addEventListener("click", (e) => {
     if (isOpen && !loginBox.contains(e.target)) {
@@ -766,4 +769,633 @@ document.addEventListener("click", (event) => {
       loginMsg.textContent = "";
     }
   });
+})();
+
+// ================================
+// RIGHT SIDE: Tabs + Daily Game + Daily Question
+// (Safe to append; does not change existing functions)
+// ================================
+
+// Tabs
+(function initResumeRightTabs(){
+  const btns = document.querySelectorAll(".pill-tab[data-tab]");
+  const panels = document.querySelectorAll(".tab-panel");
+  const cover = document.getElementById("rightCover");
+  const closeBtn = document.getElementById("rightPanelClose");
+
+  // 你左侧卡片的 class 可能不同：如果你不是 .left-card，就改成你左侧容器真实的class
+  const leftCard = document.querySelector(".left-card") || document.querySelector(".resume-left") || document.querySelector("#resumeLeft");
+  const rightCard = document.querySelector(".right-card") || document.querySelector(".resume-right") || document.querySelector("#resumeRight");
+
+  if (!btns.length || !cover || !closeBtn) return;
+
+  function hideAllPanels(){
+    panels.forEach(p => p.classList.remove("active"));
+    btns.forEach(b => b.classList.remove("active"));
+  }
+
+  function showCover(){
+    cover.style.display = "block";
+    closeBtn.style.display = "none";
+    hideAllPanels();
+    syncRightHeight();
+  }
+
+  function showPanel(tabId, btn){
+    cover.style.display = "none";
+    closeBtn.style.display = "inline-flex";
+    hideAllPanels();
+    btn.classList.add("active");
+    document.getElementById(tabId)?.classList.add("active");
+    // 面板显示后再同步高度
+    setTimeout(syncRightHeight, 0);
+  }
+
+  function syncRightHeight(){
+    if (!leftCard || !rightCard) return;
+    // 让右侧至少和左侧一样高（如果右侧内容更高，它会自然变高）
+    rightCard.style.minHeight = leftCard.offsetHeight + "px";
+  }
+
+  // ✅ 初始：只显示 cover
+  showCover();
+
+  // 点击 tab
+  btns.forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const tabId = btn.dataset.tab;
+      showPanel(tabId, btn);
+    });
+  });
+
+  // 点击关闭
+  closeBtn.addEventListener("click", showCover);
+
+  // 窗口变化时同步
+  window.addEventListener("load", syncRightHeight);
+  window.addEventListener("resize", syncRightHeight);
+})();
+
+
+
+
+
+// Daily Question (rotates by date)
+(function initDailyQuestion(){
+  const qText = document.getElementById("qText");
+  const qMeta = document.getElementById("qMeta");
+  const input = document.getElementById("qAnswer");
+  const btnCheck = document.getElementById("btnCheck");
+  const btnReveal = document.getElementById("btnReveal");
+  const feedback = document.getElementById("qFeedback");
+  const refWrap = document.getElementById("qRefWrap");
+  const qRef = document.getElementById("qRef");
+
+  if (!qText || !qMeta || !btnCheck || !btnReveal) return;
+
+  const QUESTIONS = [
+    {
+      q: "You discover a potential data leak affecting a small number of users. What are the first 3 actions you would take in the first 24 hours, and why?",
+      ref: "Example reference: 1) Contain & preserve evidence (limit access, snapshot logs). 2) Triage scope/impact (what data, how many users, how it happened). 3) Notify the right stakeholders (security/legal/leadership) and assess notification obligations by jurisdiction & data type."
+    },
+    {
+      q: "A third-party vendor handles user data. What key contract clauses would you insist on to manage privacy/security risk?",
+      ref: "Example reference: Data processing terms, security standards, breach notification timelines, audit rights, subcontractor controls, data retention/deletion, cross-border transfer safeguards, and aligned liability/indemnity."
+    },
+    {
+      q: "Leadership wants to ship a feature that collects more user data ASAP. How do you push back constructively while still enabling delivery?",
+      ref: "Example reference: Clarify the goal, propose a privacy-minimizing alternative, explain concrete risks, set guardrails (minimization/retention/consent), and offer a phased plan with measurable milestones."
+    }
+  ];
+
+  const idx = pickDailyIndex(QUESTIONS.length);
+  const item = QUESTIONS[idx];
+
+  qText.textContent = item.q;
+  qMeta.textContent = `Today (${getTodayKey()}): Question #${idx + 1} — rotates daily.`;
+
+  function showFeedback(text){
+    feedback.style.display = "block";
+    feedback.textContent = text;
+  }
+
+  btnCheck.addEventListener("click", ()=>{
+    const ans = (input.value || "").trim();
+    if (!ans) {
+      showFeedback("Write a short answer first (3–6 sentences). Then click again for feedback.");
+      return;
+    }
+
+    const hasSteps = /(1|first|second|third|then|next)/i.test(ans);
+    const mentionsCore = /(risk|impact|scope|evidence|notify|legal|privacy|security|stakeholder)/i.test(ans);
+    const concise = ans.length <= 900;
+
+    const tips = [];
+    if (!hasSteps) tips.push("Try structuring it as 3 clear steps (1/2/3).");
+    if (!mentionsCore) tips.push("Add core keywords: scope, evidence, notification, stakeholders, risk/impact.");
+    if (!concise) tips.push("Make it tighter: 4–6 sentences is ideal.");
+
+    const score = (hasSteps?1:0) + (mentionsCore?1:0) + (concise?1:0);
+
+    showFeedback(
+      `Quick feedback: ${score}/3\n` +
+      (tips.length ? `Improve:\n- ${tips.join("\n- ")}` : "Nice structure. Compare with the reference answer if you want.")
+    );
+  });
+
+  btnReveal.addEventListener("click", ()=>{
+    refWrap.style.display = "block";
+    qRef.textContent = item.ref;
+  });
+})();
+
+// =======================================
+// MINI GAMES: Tetris / Match-3 / 24 Cards
+// (Daily rotation by date, same for everyone)
+// =======================================
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+function pickDailyIndex(len){
+  const s = getTodayKey().replaceAll("-", ""); // YYYYMMDD
+  let n = 0;
+  for (const ch of s) n = (n * 10 + (ch.charCodeAt(0) - 48)) % 1000000;
+  return n % len;
+}
+function lsGet(key, fallback){
+  try { const v = localStorage.getItem(key); return v===null ? fallback : JSON.parse(v); }
+  catch { return fallback; }
+}
+function lsSet(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+// -------- Game 1: Tetris (simplified) --------
+function gameTetris(mount) {
+  mount.innerHTML = `
+    <div class="game-title">🧱 Tetris</div>
+    <div class="game-muted">Controls: ← → ↓ / ↑ rotate / Space hard drop / P pause / R restart</div>
+    <div class="game-muted">Click Restart to begin.</div>
+    <div class="game-row">
+      <span id="tScore" class="game-pill">Score: 0</span>
+      <span id="tBest" class="game-pill">Best today: —</span>
+      <button id="tRestart" class="btn-ghost" type="button">Restart</button>
+      <button id="tPause" class="btn-ghost" type="button">Pause</button>
+    </div>
+    
+    <div class="game-area tetris-wrap">
+      <canvas id="tCanvas" width="200" height="400"></canvas>
+    </div>
+  `;
+
+  const canvas = mount.querySelector("#tCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const today = getTodayKey();
+  const bestKey = `best_tetris_${today}`;
+  let best = lsGet(bestKey, null);
+
+  const bestEl = mount.querySelector("#tBest");
+  const scoreEl = mount.querySelector("#tScore");
+  const restartBtn = mount.querySelector("#tRestart");
+  const pauseBtn = mount.querySelector("#tPause");
+
+  function renderBest(){ bestEl.textContent = best==null ? "Best today: —" : `Best today: ${best}`; }
+  renderBest();
+
+  const COLS=10, ROWS=20, SIZE=20;
+  const board = Array.from({length:ROWS}, ()=>Array(COLS).fill(0));
+
+  const SHAPES = {
+    I:[[1,1,1,1]],
+    O:[[1,1],[1,1]],
+    T:[[0,1,0],[1,1,1]],
+    S:[[0,1,1],[1,1,0]],
+    Z:[[1,1,0],[0,1,1]],
+    J:[[1,0,0],[1,1,1]],
+    L:[[0,0,1],[1,1,1]],
+  };
+  const KEYS = Object.keys(SHAPES);
+
+
+let score=0, paused=true, over=false;
+let running=false;
+let rafId=null;
+
+  function rotate(mat){
+    const h=mat.length, w=mat[0].length;
+    const res=Array.from({length:w}, ()=>Array(h).fill(0));
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) res[x][h-1-y]=mat[y][x];
+    return res;
+  }
+
+  function randPiece(){
+    const k = KEYS[Math.floor(Math.random()*KEYS.length)];
+    const m = SHAPES[k].map(r=>r.slice());
+    return { m, x: Math.floor((COLS-m[0].length)/2), y: 0 };
+  }
+  let piece = randPiece();
+
+  function collide(px,py,mat){
+    for(let y=0;y<mat.length;y++){
+      for(let x=0;x<mat[0].length;x++){
+        if(!mat[y][x]) continue;
+        const bx=px+x, by=py+y;
+        if(bx<0||bx>=COLS||by>=ROWS) return true;
+        if(by>=0 && board[by][bx]) return true;
+      }
+    }
+    return false;
+  }
+
+  function merge(){
+    for(let y=0;y<piece.m.length;y++){
+      for(let x=0;x<piece.m[0].length;x++){
+        if(!piece.m[y][x]) continue;
+        const by=piece.y+y, bx=piece.x+x;
+        if(by>=0) board[by][bx]=1;
+      }
+    }
+  }
+
+  function clearLines(){
+    let cleared=0;
+    for(let y=ROWS-1;y>=0;y--){
+      if(board[y].every(v=>v===1)){
+        board.splice(y,1);
+        board.unshift(Array(COLS).fill(0));
+        cleared++; y++;
+      }
+    }
+    if(cleared){
+      score += [0,100,300,500,800][cleared] || cleared*200;
+      scoreEl.textContent = `Score: ${score}`;
+    }
+  }
+
+  function lockNext(){
+    merge();
+    clearLines();
+    piece = randPiece();
+    if(collide(piece.x,piece.y,piece.m)){
+      over=true;
+      if(best==null || score>best){ best=score; lsSet(bestKey,best); renderBest(); }
+    }
+  }
+
+  function hardDrop(){
+    while(!collide(piece.x,piece.y+1,piece.m)) piece.y++;
+    lockNext();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(board[y][x]) ctx.fillRect(x*SIZE,y*SIZE,SIZE-1,SIZE-1);
+      }
+    }
+    for(let y=0;y<piece.m.length;y++){
+      for(let x=0;x<piece.m[0].length;x++){
+        if(!piece.m[y][x]) continue;
+        ctx.fillRect((piece.x+x)*SIZE,(piece.y+y)*SIZE,SIZE-1,SIZE-1);
+      }
+    }
+    if(over) ctx.fillText("GAME OVER", 55, 200);
+  }
+
+  let last=0, acc=0, interval=600;
+  function loop(ts){
+   if (!running) return;   // ✅ 不运行就退出，不会自动开始
+    if(!last) last=ts;
+    const dt=ts-last; last=ts;
+    if(!paused && !over){
+      acc+=dt;
+      if(acc>interval){
+        acc=0;
+        if(!collide(piece.x,piece.y+1,piece.m)) piece.y++;
+        else lockNext();
+      }
+    }
+    draw();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function restart(){
+    for(let y=0;y<ROWS;y++) board[y].fill(0);
+    score=0; paused=false; over=false;
+    piece = randPiece();
+    scoreEl.textContent = `Score: ${score}`;
+  }
+  function start(){
+  if (running) return;
+  running = true;
+  paused = false;
+  last = 0;
+  acc = 0;
+  rafId = requestAnimationFrame(loop);
+}
+
+function stop(){
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+}
+
+function restartAndStart(){
+  restart();
+  start();
+}
+
+  
+  restartBtn.addEventListener("click", restartAndStart);
+pauseBtn.addEventListener("click", ()=> {
+  if (!running) return;
+  paused = !paused;
+});
+
+function onKey(e){
+  if(document.activeElement && ["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) return;
+
+  // ✅ 关键：阻止方向键/空格滚动页面（只在Tetris运行时）
+  const blockKeys = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "];
+  if (running && blockKeys.includes(e.key)) {
+    e.preventDefault();
+  }
+
+  if(e.key==="p"||e.key==="P") paused=!paused;
+  if(e.key==="r"||e.key==="R") restartAndStart(); // 我下面会让你加这个函数
+  if(!running || paused || over) return;
+
+  if(e.key==="ArrowLeft" && !collide(piece.x-1,piece.y,piece.m)) piece.x--;
+  else if(e.key==="ArrowRight" && !collide(piece.x+1,piece.y,piece.m)) piece.x++;
+  else if(e.key==="ArrowDown" && !collide(piece.x,piece.y+1,piece.m)) piece.y++;
+  else if(e.key==="ArrowUp"){
+    const rm=rotate(piece.m);
+    if(!collide(piece.x,piece.y,rm)) piece.m=rm;
+  } else if(e.key===" "){
+    hardDrop();
+  }
+}
+
+  window.addEventListener("keydown", onKey, { passive:false });
+
+  draw();
+scoreEl.textContent = `Score: ${score}`;
+bestEl.textContent = best==null ? "Best today: —" : `Best today: ${best}`;
+
+}
+
+// -------- Game 2: Match-3 (simplified) --------
+function gameMatch3(mount){
+  mount.innerHTML = `
+    <div class="game-title">🍬 Match-3</div>
+    <div class="game-muted">Click two adjacent blocks to swap. Make 3+ to clear.</div>
+    <div class="game-row">
+      <span id="mScore" class="game-pill">Score: 0</span>
+      <span id="mBest" class="game-pill">Best today: —</span>
+      <button id="mNew" class="btn-ghost" type="button">New board</button>
+    </div>
+    <div id="mGrid" class="m3-grid"></div>
+  `;
+
+  const today=getTodayKey();
+  const bestKey=`best_match3_${today}`;
+  let best=lsGet(bestKey,null);
+  const scoreEl=mount.querySelector("#mScore");
+  const bestEl=mount.querySelector("#mBest");
+  const gridEl=mount.querySelector("#mGrid");
+
+  const N=8;
+  const TYPES=["A","B","C","D","E","F"];
+  const grid=Array.from({length:N}, ()=>Array(N).fill("A"));
+  let score=0;
+  let first=null;
+
+  function renderBest(){ bestEl.textContent = best==null ? "Best today: —" : `Best today: ${best}`; }
+  renderBest();
+
+  function randType(){ return TYPES[Math.floor(Math.random()*TYPES.length)]; }
+
+  function initBoard(){
+    score=0; first=null;
+    scoreEl.textContent=`Score: ${score}`;
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        let t;
+        do{
+          t=randType();
+        }while(
+          (c>=2 && grid[r][c-1]===t && grid[r][c-2]===t) ||
+          (r>=2 && grid[r-1][c]===t && grid[r-2][c]===t)
+        );
+        grid[r][c]=t;
+      }
+    }
+    render();
+  }
+
+  function render(){
+    gridEl.innerHTML="";
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const d=document.createElement("div");
+        d.className="m3-cell";
+        d.dataset.r=r; d.dataset.c=c;
+        d.textContent=grid[r][c];
+        if(first && first.r===r && first.c===c) d.classList.add("selected");
+        gridEl.appendChild(d);
+      }
+    }
+  }
+
+  function adjacent(a,b){ return Math.abs(a.r-b.r)+Math.abs(a.c-b.c)===1; }
+
+  function findMatches(){
+    const marked=Array.from({length:N},()=>Array(N).fill(false));
+    for(let r=0;r<N;r++){
+      let c=0;
+      while(c<N){
+        const t=grid[r][c];
+        let k=c+1;
+        while(k<N && grid[r][k]===t) k++;
+        if(t && k-c>=3) for(let x=c;x<k;x++) marked[r][x]=true;
+        c=k;
+      }
+    }
+    for(let c=0;c<N;c++){
+      let r=0;
+      while(r<N){
+        const t=grid[r][c];
+        let k=r+1;
+        while(k<N && grid[k][c]===t) k++;
+        if(t && k-r>=3) for(let x=r;x<k;x++) marked[x][c]=true;
+        r=k;
+      }
+    }
+    return marked;
+  }
+  function anyMarked(m){
+    for(let r=0;r<N;r++) for(let c=0;c<N;c++) if(m[r][c]) return true;
+    return false;
+  }
+  function clearMarked(m){
+    let cleared=0;
+    for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+      if(m[r][c]){ grid[r][c]=null; cleared++; }
+    }
+    if(cleared){
+      score += cleared*10;
+      scoreEl.textContent=`Score: ${score}`;
+    }
+  }
+  function dropRefill(){
+    for(let c=0;c<N;c++){
+      let w=N-1;
+      for(let r=N-1;r>=0;r--){
+        if(grid[r][c]!=null){
+          grid[w][c]=grid[r][c];
+          if(w!==r) grid[r][c]=null;
+          w--;
+        }
+      }
+      for(let r=w;r>=0;r--) grid[r][c]=randType();
+    }
+  }
+  function resolve(){
+    let loops=0;
+    while(loops<10){
+      const m=findMatches();
+      if(!anyMarked(m)) break;
+      clearMarked(m);
+      dropRefill();
+      loops++;
+    }
+    if(best==null || score>best){ best=score; lsSet(bestKey,best); renderBest(); }
+    render();
+  }
+  function swap(a,b){
+    const tmp=grid[a.r][a.c];
+    grid[a.r][a.c]=grid[b.r][b.c];
+    grid[b.r][b.c]=tmp;
+  }
+
+  gridEl.addEventListener("click",(e)=>{
+    const cell=e.target.closest(".m3-cell");
+    if(!cell) return;
+    const cur={ r:Number(cell.dataset.r), c:Number(cell.dataset.c) };
+
+    if(!first){ first=cur; render(); return; }
+    if(first.r===cur.r && first.c===cur.c){ first=null; render(); return; }
+    if(!adjacent(first,cur)){ first=cur; render(); return; }
+
+    swap(first,cur);
+    const m=findMatches();
+    if(anyMarked(m)){ first=null; resolve(); }
+    else { swap(first,cur); first=null; render(); }
+  });
+
+  mount.querySelector("#mNew").addEventListener("click", initBoard);
+  initBoard();
+}
+
+// -------- Game 3: 24 Cards --------
+function game24(mount){
+  mount.innerHTML = `
+    <div class="game-title">🃏 24 Cards</div>
+    <div class="game-muted">Use all 4 numbers exactly once with + - * / ( ) to make 24.</div>
+    <div id="cardsRow" class="card24-row"></div>
+    <div class="game-row">
+      <input id="expr" class="game-input" placeholder="Example: (8-4) * (7-1)" />
+    </div>
+    <div class="game-row">
+      <button id="check24" class="btn-primary" type="button">Check</button>
+      <button id="new24" class="btn-ghost" type="button">New hand</button>
+      <span id="best24" class="game-pill">Best today: —</span>
+    </div>
+    <div id="msg24" class="game-muted"></div>
+  `;
+
+  const today=getTodayKey();
+  const bestKey=`best_24_${today}`;
+  let best=lsGet(bestKey,null);
+  const bestEl=mount.querySelector("#best24");
+  const cardsRow=mount.querySelector("#cardsRow");
+  const exprEl=mount.querySelector("#expr");
+  const msgEl=mount.querySelector("#msg24");
+
+  function renderBest(){ bestEl.textContent = best==null ? "Best today: —" : `Best today: ${best} attempts`; }
+  renderBest();
+
+  let nums=[], attempts=0;
+
+  function drawCards(){
+    cardsRow.innerHTML="";
+    nums.forEach(n=>{
+      const d=document.createElement("div");
+      d.className="card24";
+      d.textContent=String(n);
+      cardsRow.appendChild(d);
+    });
+  }
+  function newHand(){
+    attempts=0;
+    nums=Array.from({length:4},()=>1+Math.floor(Math.random()*13));
+    drawCards();
+    exprEl.value="";
+    msgEl.textContent="Type an expression using all 4 numbers exactly once.";
+  }
+
+  function isSafeExpr(expr){ return /^[0-9+\-*/().\s]+$/.test(expr); }
+  function countNums(expr){ return (expr.match(/\d+/g)||[]).map(Number); }
+  function sameMultiset(a,b){
+    return [...a].sort((x,y)=>x-y).join(",")===[...b].sort((x,y)=>x-y).join(",");
+  }
+
+  function check(){
+    const expr=(exprEl.value||"").trim();
+    if(!expr){ msgEl.textContent="Please enter an expression."; return; }
+    if(!isSafeExpr(expr)){ msgEl.textContent="Only use numbers and + - * / ( )."; return; }
+
+    const used=countNums(expr);
+    if(used.length!==4 || !sameMultiset(used,nums)){
+      msgEl.textContent=`You must use exactly these numbers once: ${nums.join(", ")}.`;
+      return;
+    }
+
+    attempts++;
+    let val;
+    try{ val = Function(`"use strict"; return (${expr});`)(); }
+    catch{ msgEl.textContent="Invalid expression."; return; }
+
+    const ok = Math.abs(val-24)<1e-6;
+    if(ok){
+      msgEl.textContent=`✅ Correct! Attempts: ${attempts}.`;
+      if(best==null || attempts<best){ best=attempts; lsSet(bestKey,best); renderBest(); }
+    } else {
+      msgEl.textContent=`❌ Got ${val}. Attempts: ${attempts}. Try again.`;
+    }
+  }
+
+  mount.querySelector("#check24").addEventListener("click", check);
+  mount.querySelector("#new24").addEventListener("click", newHand);
+  newHand();
+}
+
+// -------- Mount daily game --------
+(function initDailyGame(){
+  const mount=document.getElementById("gameMount");
+  const meta=document.getElementById("gameMeta");
+  if(!mount || !meta) return;
+
+  const games=[
+    { title:"Tetris", fn: gameTetris },
+    { title:"Match-3", fn: gameMatch3 },
+    { title:"24 Cards", fn: game24 },
+  ];
+
+  const idx=pickDailyIndex(games.length);
+  const g=games[idx];
+  g.fn(mount);
+  meta.textContent = `Today (${getTodayKey()}): ${g.title} — rotates daily.`;
 })();

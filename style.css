@@ -547,3 +547,340 @@ transform: translateY(0);
   color: #fff;
 }
 
+/* =============================
+   RESUME SPLIT (LEFT/RIGHT)
+   ============================= */
+.resume-split{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.right-card{
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(255,255,255,0.88);
+   display: flex;            /* ✅ 新增 */
+  flex-direction: column;
+}
+
+/* Tabs */
+.tabs{
+  display:flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tab-btn{
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.14);
+  background: rgba(255,255,255,0.9);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-btn.active{
+  border-color: rgba(0,0,0,0.24);
+  background: rgba(0,0,0,0.04);
+}
+
+.tab-panel{ display:none; }
+.tab-panel.active{ display:block; }
+
+.panel-head{ margin-bottom: 12px; }
+.panel-title{ font-size: 18px; font-weight: 800; }
+.panel-sub{ opacity: 0.75; margin-top: 4px; }
+.panel-foot{ margin-top: 12px; }
+
+/* Game area */
+.game-mount{
+  border: 2px dashed rgba(52,152,219,0.35);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 180px;
+  background: #fbfdff;
+}
+
+/* Question box */
+.q-box{
+  border: 2px dashed rgba(52,152,219,0.35);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fbfdff;
+}
+
+.q-text{ font-weight: 700; margin-bottom: 10px; }
+
+.q-label{
+  display:block;
+  margin: 10px 0 6px;
+  font-weight: 700;
+}
+
+.q-input{
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  outline: none;
+  font-size: 1rem;
+}
+
+.q-actions{
+  display:flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-primary{
+  flex:1;
+  padding: 10px 14px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor:pointer;
+  font-weight: 700;
+}
+
+.btn-primary:hover{ background:#2b85c6; }
+
+.btn-ghost{
+  flex:1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: transparent;
+  cursor:pointer;
+  font-weight: 700;
+}
+
+.q-feedback{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.03);
+  display:none;
+  white-space: pre-line; /* 让反馈换行更清晰 */
+}
+
+.q-ref-wrap{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.03);
+}
+
+.q-ref-title{ font-weight: 800; margin-bottom: 6px; }
+
+/* 先给一个兜底：屏幕窄时上下排列（以后做手机适配会用到） */
+@media (max-width: 900px){
+  .resume-split{ grid-template-columns: 1fr; }
+}
+
+/* ===== Two independent floating cards ===== */
+.resume-split{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+/* 左右都是独立卡片 */
+.left-card,
+.right-card{
+  background: rgba(255,255,255,0.88);
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.10);
+  padding: 22px;
+}
+
+/* 左侧标题与横线只在左卡片内 */
+.left-card h2{ margin-top: 0; }
+
+/* ===== Pill (oval) labels on right ===== */
+.pill-tabs{
+  display:flex;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.pill-tab{
+  flex: 1;
+  padding: 14px 14px;
+  border-radius: 9999px;            /* ✅ 椭圆 */
+  border: 1px solid rgba(0,0,0,0.14);
+  background: rgba(255,255,255,0.95);
+  cursor: pointer;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pill-tab.active{
+  background: rgba(52,152,219,0.12);
+  border-color: rgba(52,152,219,0.55);
+}
+
+/* 原来的 tab 按钮如果还在，不用了也没关系，但避免影响 */
+.tabs{ display:none !important; }
+
+/* panels */
+.tab-panel{ display:none; }
+.tab-panel.active{ display:block; }
+
+/* keep your existing game/question styles (if already exist, this won't hurt) */
+
+.game-mount{
+  border: 2px dashed rgba(52,152,219,0.35);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 180px;
+  background: #fbfdff;
+}
+
+/* ===== Mini games UI ===== */
+.game-title { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+.game-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 10px 0; }
+.game-pill { padding: 8px 12px; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.14); background: rgba(255,255,255,0.9); font-weight: 800; }
+.game-muted { opacity: .75; }
+.game-area { margin-top: 10px; }
+
+.tetris-wrap canvas {
+  width: 240px; height: 480px; /* 视觉大小（实际像素由 JS 设定） */
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: #fff;
+}
+
+.m3-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  max-width: 360px;
+}
+.m3-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.10);
+  display:flex; align-items:center; justify-content:center;
+  font-weight: 900;
+  cursor: pointer;
+  user-select: none;
+}
+.m3-cell.selected { outline: 3px solid rgba(52,152,219,0.6); }
+
+.card24-row {
+  display:flex; gap:10px; flex-wrap:wrap; margin: 10px 0;
+}
+.card24 {
+  width: 64px; height: 84px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.95);
+  display:flex; align-items:center; justify-content:center;
+  font-weight: 900;
+  font-size: 20px;
+}
+.card24 input, .card24 textarea { width: 100%; }
+
+.game-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+/* ===== Right cover + close button ===== */
+.pill-tabs{
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.pill-close{
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0,0,0,0.14);
+  background: rgba(255,255,255,0.85);
+  font-weight: 900;
+  cursor: pointer;
+  display: none; /* 默认隐藏，打开面板时显示 */
+}
+
+.pill-close:hover{
+  background: rgba(255,255,255,0.95);
+}
+
+.right-cover{
+  position: relative;
+  height: 100%;                 /* ✅ 撑满 right-card */
+  min-height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.85);
+
+  display: flex;                /* ✅ 用 flex 居中封面内容 */
+  align-items: center;
+  justify-content: center;
+}
+
+
+.cover-img{
+  max-width: 92%;
+  max-height: 88%;
+  object-fit: contain;   /* 保证不变形 */
+  display: block;
+}
+
+
+/* tab panels 默认隐藏 */
+.tab-panel{ display:none; }
+.tab-panel.active{ display:block; }
+/* =========================
+   STEP 3: Right card layout
+   让封面/面板吃满右侧高度
+========================= */
+
+/* ✅ 只让右侧成为纵向 flex 容器 */
+.right-card{
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✅ tabs 不撑高，只占自身高度 */
+.pill-tabs{
+  flex: 0 0 auto;
+}
+
+/* ✅ 封面和面板：占满 tabs 下面剩余空间 */
+#rightCover,
+.tab-panel{
+  flex: 1 1 auto;
+  min-height: 0;      /* ✅ 非常关键：允许内部滚动，不把卡片撑爆 */
+}
+
+/* ✅ 封面容器：真正吃满可用高度 */
+.right-cover{
+  height: auto;       /* 覆盖你之前写的 height:100% */
+  min-height: 0;      /* 覆盖 min-height:100% */
+  width: 100%;
+}
+
+/* ✅ 封面图像：填满封面区域（竖图更适合） */
+.cover-img{
+  width: 100%;
+  height: 100%;
+  max-width: none;    /* 覆盖 max-width:92% */
+  max-height: none;   /* 覆盖 max-height:88% */
+  object-fit: contain; /* 不变形；想铺满可改成 cover */
+}

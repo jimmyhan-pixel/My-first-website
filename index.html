@@ -48,8 +48,6 @@
 
 
 
-
-
 <header>
   <div class="header-content">
     <h1>--</h1>
@@ -75,38 +73,128 @@
     </div>
   </section>
 
+  
   <section id="connect">
-    <h2>Get My Resume</h2>
-    <div class="content-wrapper">
-      <p>To download my resume, please answer this question:</p>
-      <p><strong>What is your organization and your title? (e.g., Acme Corp — Senior Engineer)</strong></p>
+  
+  <div class="content-wrapper">
+    <div class="resume-split">
+      <!-- LEFT: keep existing resume download UI (UNCHANGED) -->
+      
 
-      <div class="download-box">
-        <form id="downloadForm">
-          <input type="text" id="orgInput" placeholder="Organization (e.g., Acme Corp)" required>
-          <input type="text" id="titleInput" placeholder="Title (e.g., Senior Engineer)" required>
-          <button type="submit" id="downloadBtn">Submit & Download</button>
-        </form>
-        <p id="downloadMessage" class="muted"></p>
-        <a id="resumeLink" href="resume.pdf" download style="display:none">Download</a>
+       <div class="left-card">
+        <h2>Get My Resume</h2>
+      
+
+        <p>To download my resume, please answer this question:</p>
+        <p><strong>What is your organization and your title? (e.g., Acme Corp — Senior Engineer)</strong></p>
+
+        <div class="download-box">
+          <form id="downloadForm">
+            <input type="text" id="orgInput" placeholder="Organization (e.g., Acme Corp)" required>
+            <input type="text" id="titleInput" placeholder="Title (e.g., Senior Engineer)" required>
+            <button type="submit" id="downloadBtn">Submit & Download</button>
+          </form>
+          <p id="downloadMessage" class="muted"></p>
+          <a id="resumeLink" href="resume.pdf" download style="display:none">Download</a>
+        </div>
+      </div>
+
+      <!-- RIGHT: label1 game / label2 daily question -->
+     
+        <div class="right-card">
+          
+          <!-- pill tabs -->
+          <div class="pill-tabs">
+      <button class="pill-tab" data-tab="tab-game" type="button">
+        🎮 Today’s Mini Game
+      </button>
+
+      <button class="pill-tab" data-tab="tab-question" type="button">
+        💡 Daily Industry Question
+      </button>
+
+      <!-- ✅ 新增：关闭按钮（Step 2.1 的内容） -->
+      <button
+        id="rightPanelClose"
+        class="pill-close"
+        type="button"
+        aria-label="Close panel">
+        ✕
+      </button>
+    </div>
+
+      <!-- ✅ STEP 2.2：右侧封面（默认显示） -->
+<div id="rightCover" class="right-cover">
+  <img
+    class="cover-img"
+    src="assets/ai-cover.svg"
+    alt="AI changes life cover"
+  />
+</div>
+
+          <!-- TAB 1 -->
+          <div id="tab-game" class="tab-panel active">
+            <div class="panel-head">
+              
+              <div class="panel-sub">Auto-rotates daily (same game for everyone today).</div>
+            </div>
+
+            <div id="gameMount" class="game-mount"></div>
+
+            <div class="panel-foot">
+              <small id="gameMeta" class="muted"></small>
+            </div>
+          </div>
+
+          <!-- TAB 2 -->
+          <div id="tab-question" class="tab-panel">
+            <div class="panel-head">
+              
+              <div class="panel-sub">Answer first, then get feedback or reveal the reference answer.</div>
+            </div>
+
+            <div class="q-box">
+              <div id="qText" class="q-text"></div>
+
+              <label class="q-label" for="qAnswer">Your answer</label>
+              <textarea id="qAnswer" class="q-input" rows="4" placeholder="Write your answer here..."></textarea>
+
+              <div class="q-actions">
+                <button id="btnCheck" class="btn-primary" type="button">Get quick feedback</button>
+                <button id="btnReveal" class="btn-ghost" type="button">Reveal reference answer</button>
+              </div>
+
+              <div id="qFeedback" class="q-feedback"></div>
+
+              <div id="qRefWrap" class="q-ref-wrap" style="display:none;">
+                <div class="q-ref-title">Reference answer</div>
+                <div id="qRef" class="q-ref"></div>
+              </div>
+            </div>
+
+            <div class="panel-foot">
+              <small id="qMeta" class="muted"></small>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
+</main>
   <section id="contact">
     <h2>Contact</h2>
     <div class="content-wrapper">
-      <div class="contact-item">
-        <span class="contact-icon">✉️</span>
-        <a href="mailto:Jimmy.han@pursuit.org" class="contact-link">--@pursuit.org</a>
-      </div>
-      <div class="contact-item">
-        <span class="contact-icon">🕐</span>
-        <span id="clock" class="clock-text"></span>
-      </div>
+      <p>
+        ✉️ <a href="mailto:--@pursuit.org">--@pursuit.org</a>
+      </p>
+      <p>
+        🕒 <span id="clock"></span>
+      </p>
     </div>
   </section>
-</main>
 
 <footer>
   <p>&copy; 2024 Jimmy Han. Built with passion and curiosity.</p>
