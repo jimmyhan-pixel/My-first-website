@@ -806,10 +806,10 @@ transform: translateY(0);
 
 .pill-close{
   margin-left: auto;
-  width: 44px;
-  height: 44px;
+  width: 22px;
+  height: 22px;
   border-radius: 9999px;
-  border: 1px solid rgba(0,0,0,0.14);
+  border: 2px solid rgba(0,0,0,0.14);
   background: rgba(255,255,255,0.85);
   font-weight: 900;
   cursor: pointer;
@@ -817,7 +817,7 @@ transform: translateY(0);
 }
 
 .pill-close:hover{
-  background: rgba(255,255,255,0.95);
+  background: rgba(10, 95, 144, 0.95);
 }
 
 .right-cover{
